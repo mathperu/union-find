@@ -1,3 +1,5 @@
+package union_find
+
 import scala.collection.immutable.Map
 sealed trait Node
 
@@ -45,6 +47,6 @@ class UnionFind[T] (r: Map[T, Node]){
 
     def union(value1: T, value2: T): UnionFind[T] = link(find(value1), find(value2))
      
-
+    def contains(v: T): Boolean = r.contains(v)
     
 }

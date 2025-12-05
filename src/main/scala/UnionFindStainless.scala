@@ -9,7 +9,7 @@ import stainless.collection._
  * The data structure stores nodes in a List, where index i corresponds to element i.
  */
 
-object UnionFindStainless {
+object UnionFindStainless_ {
 
   sealed trait Node
   case class Child(parent: BigInt) extends Node

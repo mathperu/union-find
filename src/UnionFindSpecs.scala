@@ -19,8 +19,10 @@ object UnionFindSpecs {
 
     def find_spec[T](uf: UnionFind[T], x: T): Unit = {
         require(uf.contains(x))
-    }.ensuring(y => 
-        ??? // no path compression: trivial (ok) (maybe find some other specs ?)
+    }.ensuring(y => uf.isRoot(y)
+        ??? // no path compression: trivial (ok)
+        // (maybe find some other specs ?)
+        // assert y is a root
         // with path compression : prove its equal to no compression version 
     )
 

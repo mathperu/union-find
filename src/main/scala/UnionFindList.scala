@@ -10,6 +10,8 @@ object UnionFindStainless {
   case class Root(rank: BigInt) extends Node
 
   case class UF(nodes: List[Node]) {
+    require(nodes.forall(n => myParentIsInTheList(n)))
+    require(size >= 0)
 
     def size: BigInt = nodes.size
 
@@ -33,6 +35,15 @@ object UnionFindStainless {
       }
     }
 
+
+    def myParentIsInTheList(x: BigInt): Boolean = {
+      require(contains(x))
+      get(x) match {
+        case Child(p) => contains(p)
+        case _ => true
+      }
+    }.holds
+
     def make(): (UF, BigInt) = {
       val newIdx = size
       val newNodes = nodes :+ Root(BigInt(0))
@@ -53,7 +64,7 @@ object UnionFindStainless {
         case Child(p) =>
           if (contains(p)) findBounded(p, fuel - 1)
           else
-            assert(x >= size)
+            assert(p < size)
             x  // invalid parent, treat as root
       }
     }.ensuring(y => isRoot(y))

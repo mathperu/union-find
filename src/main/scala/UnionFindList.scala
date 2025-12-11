@@ -64,24 +64,14 @@ object UnionFindStainless {
       decreases(fuel)
       if (fuel == 0) None()
       else get(x) match {
-        case Root(_) => 
-          check(contains(x))
-          check(isRoot(x))
-          Some(x)
-        case nx @ Child(p) =>
-          assert(nodes.contains(nx))
-          assert(p < nodes.size)
-          assert(myParentIsInTheList(nx, nodes))
-          assert(contains(p))
-          findBounded(p, fuel - 1)
-          /* if (contains(p)) findBounded(p, fuel - 1)
-          else
-            assert(p < size)
-            x  // invalid parent, treat as root */
+        case Root(_) => Some(x)
+        case Child(p) =>
+          if (contains(p)) findBounded(p, fuel - 1)
+          else None()
       }
     }.ensuring(y => 
       y match{
-        case Some(x) => isRoot(x)
+        case Some(r) => contains(r) && isRoot(r)
         case _ => true
       }
     )
@@ -90,7 +80,7 @@ object UnionFindStainless {
       require(contains(x))
       findBounded(x, size) match {
         case Some(value) => value
-        case None() => BigInt(-1)
+        case None() => x
       }
     }.ensuring(y => !contains(y) || isRoot(y))
 

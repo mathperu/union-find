@@ -1,14 +1,9 @@
 import stainless.lang._
 import stainless.proof._
-import stainless.collection.{List, ListSpecs}
+import stainless.collection._
 import stainless.annotation._
 
 object UnionFindRec {
-
-   /*  def listspec[T](list: List[T], elem: T, prop: T => Boolean): Unit = {
-        require(list.forall(prop) && prop(elem))
-
-    }.ensuring((list :+ elem).forall(prop)) */
 
     sealed abstract class Node[T]
     case class Child[T](value: T, parent: Node[T], rank: BigInt) extends Node[T]
@@ -47,7 +42,17 @@ object UnionFindRec {
 
         def make(elem: T): UFRec[T] = {
             val newNode = Root[T](elem, 0)
-            val newNodes = nodes :+ newNode
+            val newNodes = Cons(newNode, nodes)
+            assert(containsParent(newNode, newNodes))
+            /* forallContains(newNodes)
+            forallContains(nodes) */
+            ListSpecs.subsetRefl(nodes)
+            ListSpecs.subsetRefl(newNodes)
+            assert(newNodes.forall(x => newNodes.contains(x)))
+            // need to show that if parent is in nodes, then parent is in new nodes
+            ListSpecs.applyForAll(newNodes, newNodes.size - 1, pred(newNodes))
+            assert(Nil[T]().forall(x => x == x))
+            assert(newNodes.forall(pred(newNodes)))
             val newUF = UFRec(newNodes)
             newUF
         }

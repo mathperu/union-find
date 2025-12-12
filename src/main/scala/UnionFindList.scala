@@ -2,22 +2,36 @@ import stainless.lang._
 import stainless.proof._
 import stainless.collection.{List, ListSpecs}
 import stainless.annotation._
+import stainless.collection.Cons
+import org.w3c.dom.ls.LSInput
 
 object UnionFindStainless {
-  sealed trait Node
-  case class Child(parent: BigInt) extends Node
-  case class Root(rank: BigInt) extends Node
+  sealed trait Node:
+    val value: BigInt
+
+  case class Child(value: BigInt, parent: BigInt) extends Node
+  case class Root(value: BigInt, rank: BigInt) extends Node
 
   def myParentIsInTheList(x: Node, nodes: List[Node]): Boolean = {
     require(nodes.contains(x))
     x match {
-      case Child(p) => 0 <= p && p < nodes.size
-      case _        => true
+      case Child(_, p) => 0 <= p && p < nodes.size
+      case _           => true
     }
   }
 
+  def snocForall[T](l: List[T], p: T => Boolean, x: T) = {
+    require(l.forall(p))
+  }.ensuring((l :+ x).forall(p))
+
+  def snocPartial[T](l: List[T], partial: List[T] => T => Boolean, x: T) = {
+    require(l.forall(partial(l)))
+    require(!l.contains(x))
+  }.ensuring((l :+ x).forall(partial(l :+ x)))
+
   case class UF(nodes: List[Node]) {
-    val pred = n => myParentIsInTheList(n, nodes)
+    val part = (nodes: List[Node]) => n => myParentIsInTheList(n, nodes)
+    val pred = part(nodes)
     val prop = nodes.forall(pred)
     require(prop)
 
@@ -38,21 +52,38 @@ object UnionFindStainless {
     def isRoot(x: BigInt): Boolean = {
       require(contains(x))
       get(x) match {
-        case Root(r) => true
-        case _       => false
+        case Root(v, r) => true
+        case _          => false
       }
     }
 
     def make(): (UF, BigInt) = {
-      val newIdx = size
-      val newNode = Root(BigInt(0))
-      val newNodes = nodes :+ newNode
-      ListSpecs.snocIndex(nodes, newNode, size)
-      assert(newNodes(size) == newNode)
-      assert(myParentIsInTheList(newNode, newNodes))
-      (UF(newNodes), newIdx)
+      if size == 0 then (UF(List(Root(0, BigInt(0)))), BigInt(0))
+      else
+        val newIdx = size
+        val newNode = Root(newIdx, BigInt(0))
+        val newNodes = nodes :+ newNode
+
+        ListSpecs.snocIndex(nodes, newNode, size)
+        assert(newNodes(size) == newNode)
+        assert(myParentIsInTheList(newNode, newNodes))
+        ListSpecs.snocIsAppend(nodes, newNode)
+
+        // oldNodes.forall(p) && p(newNode) => (oldNode :+ newNode).forall(p)
+
+        val newPred = part(newNodes)
+        // snocPartial(nodes, part, newNode)
+        ListSpecs.subsetRefl(newNodes)
+        // ListSpecs.applyForAll(newNodes, size - 1, newPred)
+
+        assert(newNodes.forall(newPred))
+        ListSpecs.forallContained(newNodes, newPred, newNode)
+
+        val newUF = UF(newNodes)
+
+        (newUF, newIdx)
     }.ensuring { case (res, idx) =>
-      res.get(idx) == Root(BigInt(0))
+      res.get(idx) == Root(idx, BigInt(0))
     }
 
     def findBounded(x: BigInt, fuel: BigInt): Option[BigInt] = {
@@ -63,11 +94,11 @@ object UnionFindStainless {
       if (fuel == 0) None()
       else
         get(x) match {
-          case Root(_) =>
+          case Root(_, _) =>
             check(contains(x))
             check(isRoot(x))
             Some(x)
-          case nx @ Child(p) =>
+          case nx @ Child(_, p) =>
             assert(nodes.contains(nx))
             assert(prop)
             ListSpecs.forallContained(nodes, pred, nx)
@@ -100,15 +131,19 @@ object UnionFindStainless {
       require(contains(rx) && contains(ry))
       if (rx == ry) this
       else {
-        val rank1 = get(rx) match { case Root(r) => r; case _ => BigInt(0) }
-        val rank2 = get(ry) match { case Root(r) => r; case _ => BigInt(0) }
+        val (v1, rank1) = get(rx) match {
+          case Root(v, r) => (v, r); case Child(v, _) => (v, BigInt(0))
+        }
+        val (v2, rank2) = get(ry) match {
+          case Root(v, r) => (v, r); case Child(v, _) => (v, BigInt(0))
+        }
 
         if (rank1 < rank2)
-          updated(rx, Child(ry))
+          updated(rx, Child(v2, ry))
         else if (rank1 > rank2)
-          updated(ry, Child(rx))
+          updated(ry, Child(v1, rx))
         else
-          updated(ry, Child(rx)).updated(rx, Root(rank1 + 1))
+          updated(ry, Child(v1, rx)).updated(rx, Root(v1, rank1 + 1))
       }
     }
 

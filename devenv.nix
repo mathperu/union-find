@@ -12,6 +12,7 @@
     scala-cli 
     scalafmt 
     metals
+    z3
   ];
 
   # https://devenv.sh/languages/

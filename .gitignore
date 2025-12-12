@@ -20,6 +20,7 @@ local.sbt
 
 # VS Code
 .vscode/
+!.vscode/settings.json
 
 # Metals
 .bloop/

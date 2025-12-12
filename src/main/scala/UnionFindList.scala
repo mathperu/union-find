@@ -3,26 +3,23 @@ import stainless.proof._
 import stainless.collection.{List, ListSpecs}
 import stainless.annotation._
 
-
 object UnionFindStainless {
-
   sealed trait Node
   case class Child(parent: BigInt) extends Node
   case class Root(rank: BigInt) extends Node
 
   def myParentIsInTheList(x: Node, nodes: List[Node]): Boolean = {
-      require(nodes.contains(x))
-      x match {
-        case Child(p) => 0 <= p && p < nodes.size
-        case _ => true
-      }
+    require(nodes.contains(x))
+    x match {
+      case Child(p) => 0 <= p && p < nodes.size
+      case _        => true
     }
+  }
 
   case class UF(nodes: List[Node]) {
     val pred = n => myParentIsInTheList(n, nodes)
     val prop = nodes.forall(pred)
-    require(prop) 
-    /* require(size >= 0) */
+    require(prop)
 
     def size: BigInt = nodes.size
 
@@ -42,7 +39,7 @@ object UnionFindStainless {
       require(contains(x))
       get(x) match {
         case Root(r) => true
-        case _ => false
+        case _       => false
       }
     }
 
@@ -61,36 +58,36 @@ object UnionFindStainless {
     def findBounded(x: BigInt, fuel: BigInt): Option[BigInt] = {
       require(contains(x))
       require(fuel >= 0)
-      // require(nodes.forall(n => myParentIsInTheList(n, nodes)))
 
       decreases(fuel)
       if (fuel == 0) None()
-      else get(x) match {
-        case Root(_) => 
-          check(contains(x))
-          check(isRoot(x))
-          Some(x)
-        case nx @ Child(p) =>
-          assert(nodes.contains(nx))
-          assert(prop)
-          ListSpecs.forallContained(nodes, pred, nx)
-          assert(myParentIsInTheList(nx, nodes))
-          assert(contains(p))
-          findBounded(p, fuel - 1)
+      else
+        get(x) match {
+          case Root(_) =>
+            check(contains(x))
+            check(isRoot(x))
+            Some(x)
+          case nx @ Child(p) =>
+            assert(nodes.contains(nx))
+            assert(prop)
+            ListSpecs.forallContained(nodes, pred, nx)
+            assert(myParentIsInTheList(nx, nodes))
+            assert(contains(p))
+            findBounded(p, fuel - 1)
           // if (contains(p)) findBounded(p, fuel - 1)
           // else
           //   None()  // invalid parent, treat as root
-      }
+        }
     }.ensuring {
-      case Some(v) => isRoot(v) 
-      case None() => true
-  }
+      case Some(v) => isRoot(v)
+      case None()  => true
+    }
 
     def find(x: BigInt): BigInt = {
       require(contains(x))
       findBounded(x, size) match {
         case Some(value) => value
-        case None() => BigInt(-1)
+        case None()      => BigInt(-1)
       }
     }.ensuring(y => !contains(y) || isRoot(y))
 
@@ -123,7 +120,6 @@ object UnionFindStainless {
 
   // def empty: UF = UF(Nil[Node]())
 
-
   def idempotentLemma(uf: UF, x: BigInt): Boolean = {
     require(uf.contains(x))
     val r = uf.find(x)
@@ -131,5 +127,3 @@ object UnionFindStainless {
   }.holds
 
 }
-
-

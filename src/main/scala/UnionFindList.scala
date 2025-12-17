@@ -67,7 +67,8 @@ object UnionFindStainless {
     // lemma: nodes.forall(p) && 0 <= p.addr < nodes.size + 1  => (oldNode :+ newNode).forall(p')
     def snocAppendParentInList(nodes: List[Node], newNode: Node) = {
       val multi = parentFunc(nodes)
-      require(0 <= newNode.addr && newNode.addr < nodes.size + 1)
+      // require(0 <= newNode.addr && newNode.addr < nodes.size + 1)
+      require(newNode.addr == nodes.size)
       require(
         nodes.forall(multi)
       ) // class invariant, should work out of the box
@@ -89,6 +90,15 @@ object UnionFindStainless {
       (nodes :+ newNode).forall(newPred)
     })
 
+    def snocAppendAddr(nodes: List[Node], newNode: Node) = {
+      val multi = addrFunc(nodes)
+      require(nodes.forall(multi))
+      require(newNode.addr == nodes.size)
+    }.ensuring(_ => {
+      val newPred = addrFunc(nodes :+ newNode)
+      (nodes :+ newNode).forall(newPred)
+    })
+
     def make(): (UF, BigInt) = {
       if size == 0 then (UF(List(Root(0, BigInt(0)))), BigInt(0))
       else
@@ -104,13 +114,18 @@ object UnionFindStainless {
         // need to prove:
         // oldNodes.forall(p) && p(newNode) => (oldNode :+ newNode).forall(p)
 
-        val newPred = parentFunc(newNodes)
+        val newParentPred = parentFunc(newNodes)
+        val newAddrPred = addrFunc(newNodes)
         // snocPartial(nodes, part, newNode)
         ListSpecs.subsetRefl(newNodes)
 
         snocAppendParentInList(nodes, newNode)
-        assert(newNodes.forall(newPred))
-        ListSpecs.forallContained(newNodes, newPred, newNode)
+        snocAppendAddr(nodes, newNode)
+
+        assert(newNodes.forall(newParentPred))
+        assert(newNodes.forall(newAddrPred))
+
+        ListSpecs.forallContained(newNodes, newParentPred, newNode)
 
         val newUF = UF(newNodes)
 

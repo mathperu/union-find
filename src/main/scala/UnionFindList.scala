@@ -6,38 +6,44 @@ import stainless.collection.Cons
 import org.w3c.dom.ls.LSInput
 
 object UnionFindStainless {
+  // NOTE: addr = value (in this specific case only!)
   sealed trait Node:
-    val value: BigInt
+    val addr: BigInt
 
-  case class Child(value: BigInt, parent: BigInt) extends Node
-  case class Root(value: BigInt, rank: BigInt) extends Node
+  case class Child(addr: BigInt, parent: BigInt) extends Node
+  case class Root(addr: BigInt, rank: BigInt) extends Node
 
-  def myParentIsInTheList(x: Node, nodes: List[Node]): Boolean = {
-    require(nodes.contains(x))
-    x match {
-      case Child(_, p) => 0 <= p && p < nodes.size
-      case _           => true
-    }
+  def myParentIsInTheList(n: Node, nodes: List[Node]): Boolean = {
+    if (0 <= n.addr && n.addr < nodes.size) then
+      n match {
+        case Child(_, p) => 0 <= p && p < nodes.size
+        case _           => true
+      }
+    else true
   }
 
-  // def snocForall[T](l: List[T], p: T => Boolean, x: T) = {
-  //   require(l.forall(p))
-  // }.ensuring((l :+ x).forall(p))
-
-  // def snocPartial[T](l: List[T], partial: List[T] => T => Boolean, x: T) = {
-  //   require(l.forall(partial(l)))
-  //   require(!l.contains(x))
-  // }.ensuring((l :+ x).forall(partial(l :+ x)))
+  def addrAndHeapMatch(n: Node, nodes: List[Node]): Boolean = {
+    if 0 <= n.addr && n.addr < nodes.size then nodes(n.addr) == n
+    else true
+  }
 
   case class UF(nodes: List[Node]) {
-    val part = (nodes: List[Node]) => n => myParentIsInTheList(n, nodes)
-    val pred = part(nodes)
-    val prop = nodes.forall(pred)
-    require(prop)
+
+    val parentFunc = (nodes: List[Node]) => n => myParentIsInTheList(n, nodes)
+    val parentPred = parentFunc(nodes)
+    val parentInv = nodes.forall(parentPred)
+    require(parentInv)
+
+    val addrFunc = (nodes: List[Node]) => n => addrAndHeapMatch(n, nodes)
+    val addrPred = addrFunc(nodes)
+    val addrInv = nodes.forall(addrPred)
+    require(addrInv)
+
+    // require(addrAndHeapMatch())
 
     def size: BigInt = nodes.size
 
-    def contains(x: BigInt): Boolean = x >= 0 && x < size
+    def contains(x: BigInt): Boolean = 0 <= x && x < size
 
     def get(x: BigInt): Node = {
       require(contains(x))
@@ -59,8 +65,8 @@ object UnionFindStainless {
 
     // lemma: nodes.forall(p) && p(newNode) => (oldNode :+ newNode).forall(p')
     def snocAppendParentInList(nodes: List[Node], newNode: Node) = {
-      val single = part(List(newNode))
-      val multi = part(nodes)
+      val single = parentFunc(List(newNode))
+      val multi = parentFunc(nodes)
       require(
         nodes.forall(multi)
       ) // class invariant, should work out of the box
@@ -79,7 +85,7 @@ object UnionFindStainless {
       // }))
 
     }.ensuring(_ => {
-      val newPred = part(nodes :+ newNode)
+      val newPred = parentFunc(nodes :+ newNode)
       (nodes :+ newNode).forall(newPred)
     })
 
@@ -98,7 +104,7 @@ object UnionFindStainless {
         // need to prove:
         // oldNodes.forall(p) && p(newNode) => (oldNode :+ newNode).forall(p)
 
-        val newPred = part(newNodes)
+        val newPred = parentFunc(newNodes)
         // snocPartial(nodes, part, newNode)
         ListSpecs.subsetRefl(newNodes)
         // ListSpecs.applyForAll(newNodes, size - 1, newPred)
@@ -128,10 +134,12 @@ object UnionFindStainless {
             Some(x)
           case nx @ Child(_, p) =>
             assert(nodes.contains(nx))
-            assert(prop)
-            ListSpecs.forallContained(nodes, pred, nx)
+            assert(parentInv)
+            ListSpecs.forallContained(nodes, parentPred, nx)
             assert(myParentIsInTheList(nx, nodes))
+
             assert(contains(p))
+
             findBounded(p, fuel - 1)
           // if (contains(p)) findBounded(p, fuel - 1)
           // else

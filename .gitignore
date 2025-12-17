@@ -57,3 +57,5 @@ devenv.local.yaml
 .pre-commit-config.yaml
 
 .scala-build/
+
+.stainless-cache/

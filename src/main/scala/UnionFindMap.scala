@@ -9,8 +9,14 @@ import stainless.annotation._
 
 object UnionFindMap {
 
-  sealed trait Node[T]
-  case class Child[T](parent: T) extends Node[T]
+  sealed trait Node[T]{
+    def getRank: BigInt = this match {
+      case Child(parent, rank) => rank
+      case Root(rank) => rank
+    }
+  }
+  case class Child[T](parent: T, rank: BigInt) extends Node[T]
+  // we need pointers here !!! parent is a pointer to a Node (comparison of memory addresses)
   case class Root[T](rank: BigInt) extends Node[T]
 
   case class UF[T](r: Map[T, Node[T]], size: BigInt) {
@@ -21,9 +27,16 @@ object UnionFindMap {
     def make(value: T): UF[T] = {
       if (r.contains(value)) this
       else new UF(r + (value -> Root[T](0)), size + 1)
-    }    
+    }
 
     def simpleFind(value: T): T = {
+      r.get(value) match {
+        case Some(Child(p)) => simpleFind(p) 
+        case _ => value
+      }
+    } 
+
+    /* def simpleFind(value: T): T = {
       def simpleFindDecreases(value: T, maxDepth: BigInt): T = {
         require(maxDepth >= 0 && maxDepth <= size && (maxDepth > 0 || isRoot(value)))
         decreases(maxDepth)
@@ -35,7 +48,7 @@ object UnionFindMap {
           }
       }.ensuring(y => isRoot(y))
       simpleFindDecreases(value, size)
-    }.ensuring(y => isRoot(y))
+    }.ensuring(y => isRoot(y)) */
 
     def simpleEquiv(x: T, y: T): Boolean = {
       // TODO extend to elements not in set ?
@@ -44,7 +57,7 @@ object UnionFindMap {
     } // TODO change to find when possible
 
 
-    def link(v1: T, v2: T): UF[T] = 
+    def link(v1: T, v2: T): UF[T] = {
       require(isRoot(v1) && isRoot(v2))
       
       if (v1 == v2) this
@@ -59,6 +72,7 @@ object UnionFindMap {
         else
           UF(r + (v2 -> Child[T](v1)) + (v1 -> Root[T](rank1 + 1)), size)
       }
+    }
 
     def simpleUnion(x: T, y: T): UF[T] = {
       require(contains(x) && contains(y))
@@ -80,6 +94,7 @@ object UnionFindMap {
         case _ => 0
       }
     }
+
   } 
 
   def empty[T]: UF[T] = UF(Map[T, Node[T]](), 0)

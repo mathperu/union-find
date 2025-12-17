@@ -13,13 +13,14 @@ object UnionFindStainless {
   case class Child(addr: BigInt, parent: BigInt) extends Node
   case class Root(addr: BigInt, rank: BigInt) extends Node
 
+  // NOTE: F => F logic here: if n is not in nodes then neither is its parent
   def myParentIsInTheList(n: Node, nodes: List[Node]): Boolean = {
     if (0 <= n.addr && n.addr < nodes.size) then
       n match {
         case Child(_, p) => 0 <= p && p < nodes.size
         case _           => true
       }
-    else true
+    else false
   }
 
   def addrAndHeapMatch(n: Node, nodes: List[Node]): Boolean = {
@@ -63,14 +64,13 @@ object UnionFindStainless {
       }
     }
 
-    // lemma: nodes.forall(p) && p(newNode) => (oldNode :+ newNode).forall(p')
+    // lemma: nodes.forall(p) && 0 <= p.addr < nodes.size + 1  => (oldNode :+ newNode).forall(p')
     def snocAppendParentInList(nodes: List[Node], newNode: Node) = {
-      val single = parentFunc(List(newNode))
       val multi = parentFunc(nodes)
+      require(0 <= newNode.addr && newNode.addr < nodes.size + 1)
       require(
         nodes.forall(multi)
       ) // class invariant, should work out of the box
-      require(single(newNode))
 
       // need to show that if we add an element to the list,
       // my myParentIsInTheList will work with both
@@ -107,7 +107,6 @@ object UnionFindStainless {
         val newPred = parentFunc(newNodes)
         // snocPartial(nodes, part, newNode)
         ListSpecs.subsetRefl(newNodes)
-        // ListSpecs.applyForAll(newNodes, size - 1, newPred)
 
         snocAppendParentInList(nodes, newNode)
         assert(newNodes.forall(newPred))
@@ -141,9 +140,6 @@ object UnionFindStainless {
             assert(contains(p))
 
             findBounded(p, fuel - 1)
-          // if (contains(p)) findBounded(p, fuel - 1)
-          // else
-          //   None()  // invalid parent, treat as root
         }
     }.ensuring {
       case Some(v) => isRoot(v)

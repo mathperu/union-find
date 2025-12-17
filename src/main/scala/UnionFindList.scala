@@ -20,14 +20,14 @@ object UnionFindStainless {
     }
   }
 
-  def snocForall[T](l: List[T], p: T => Boolean, x: T) = {
-    require(l.forall(p))
-  }.ensuring((l :+ x).forall(p))
+  // def snocForall[T](l: List[T], p: T => Boolean, x: T) = {
+  //   require(l.forall(p))
+  // }.ensuring((l :+ x).forall(p))
 
-  def snocPartial[T](l: List[T], partial: List[T] => T => Boolean, x: T) = {
-    require(l.forall(partial(l)))
-    require(!l.contains(x))
-  }.ensuring((l :+ x).forall(partial(l :+ x)))
+  // def snocPartial[T](l: List[T], partial: List[T] => T => Boolean, x: T) = {
+  //   require(l.forall(partial(l)))
+  //   require(!l.contains(x))
+  // }.ensuring((l :+ x).forall(partial(l :+ x)))
 
   case class UF(nodes: List[Node]) {
     val part = (nodes: List[Node]) => n => myParentIsInTheList(n, nodes)
@@ -57,6 +57,32 @@ object UnionFindStainless {
       }
     }
 
+    // lemma: nodes.forall(p) && p(newNode) => (oldNode :+ newNode).forall(p')
+    def snocAppendParentInList(nodes: List[Node], newNode: Node) = {
+      val single = part(List(newNode))
+      val multi = part(nodes)
+      require(
+        nodes.forall(multi)
+      ) // class invariant, should work out of the box
+      require(single(newNode))
+
+      // need to show that if we add an element to the list,
+      // my myParentIsInTheList will work with both
+      val added = (nodes :+ newNode)
+
+      // ListSpecs.snocIsAppend(nodes, newNode)
+
+      assert(nodes.forall(myParentIsInTheList(_, nodes)))
+      // assert(nodes.forall({
+      //   case Child(_, p) => 0 <= p && p < nodes.size
+      //   case _           => true
+      // }))
+
+    }.ensuring(_ => {
+      val newPred = part(nodes :+ newNode)
+      (nodes :+ newNode).forall(newPred)
+    })
+
     def make(): (UF, BigInt) = {
       if size == 0 then (UF(List(Root(0, BigInt(0)))), BigInt(0))
       else
@@ -69,6 +95,7 @@ object UnionFindStainless {
         assert(myParentIsInTheList(newNode, newNodes))
         ListSpecs.snocIsAppend(nodes, newNode)
 
+        // need to prove:
         // oldNodes.forall(p) && p(newNode) => (oldNode :+ newNode).forall(p)
 
         val newPred = part(newNodes)
@@ -76,6 +103,7 @@ object UnionFindStainless {
         ListSpecs.subsetRefl(newNodes)
         // ListSpecs.applyForAll(newNodes, size - 1, newPred)
 
+        snocAppendParentInList(nodes, newNode)
         assert(newNodes.forall(newPred))
         ListSpecs.forallContained(newNodes, newPred, newNode)
 

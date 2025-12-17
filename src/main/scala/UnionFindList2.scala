@@ -41,6 +41,7 @@ object UnionFindList2{
         require(addrInvariant)
 
         def size: BigInt = heap.size
+        def domain: List[T] = heap.map(n => n.value)
 
         def isValidAddr(addr: BigInt): Boolean =
             addr >= 0 && addr < size
@@ -74,8 +75,18 @@ object UnionFindList2{
             else true
         }
 
+        def rankIs(n: Node[T], x: BigInt): Boolean = {
+            n match {
+                case Child(addr, value, parentAddr) => false
+                case Root(addr, value, rank) => rank == x
+            }
+            
+        }
+
         // invariant timeout in stainless
         def make(value: T): (UF[T], Node[T]) = {
+            require(!domain.contains(value))
+
             val addr = size
             val newNode = Root(addr, value, 0)
             val newHeap = heap :+ newNode
@@ -150,6 +161,17 @@ object UnionFindList2{
                 assert(!isValidAddr(addr))
                 assert(nodeAtIsRoot(addr))
         }.ensuring(_ => nodeAtIsRoot(find(addr)))
+
+        def makeAddsValueToDomain(value: T): Unit = {
+            require(!domain.contains(value))
+        }.ensuring(_ => make(value)._1.domain.contains(value))
+
+        def makeReturnsASingletonSet(value: T): Unit = {
+            require(!domain.contains(value))
+        }.ensuring(_ => isRoot(make(value)._2) 
+                        && find(make(value)._2.addr) == make(value)._2.addr
+                        && rankIs(make(value)._2, BigInt(0))
+        )
 
         // invalid in stainless
         def findReturnsValidAddr(addr: BigInt): Unit = {

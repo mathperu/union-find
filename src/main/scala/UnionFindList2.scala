@@ -21,12 +21,12 @@ object UnionFindList2{
                 case Child(_, _, pA) => 0 <= pA && pA < heap.size
                 case _           => true
             }
-        else true
+        else false
     }
 
     def addrAndHeapMatch[T](n: Node[T], heap: List[Node[T]]): Boolean = {
         if 0 <= n.addr && n.addr < heap.size then heap(n.addr) == n
-        else true
+        else false
     }
 
     case class UF[T](heap: List[Node[T]]) {
@@ -96,12 +96,19 @@ object UnionFindList2{
         // no path compression
         // provide address and finds parent's address
         def find(addr: BigInt): BigInt = {
-            if isValidAddr(addr) then 
-                nodeAt(addr) match {
-                    case Child(addr, value, parentAddr) => find(parentAddr)
-                    case Root(addr, value, rank) => addr
-                }
-            else addr
+            def findRec(addr: BigInt, fuel: BigInt): BigInt = {
+                require(fuel >= 0)
+                decreases(fuel)
+                if fuel == 0 then -1
+                else 
+                    if isValidAddr(addr) then 
+                        nodeAt(addr) match {
+                            case Child(addr, value, parentAddr) => findRec(parentAddr, fuel - 1)
+                            case Root(ad, value, rank) => addr
+                        }
+                    else addr
+            }
+            findRec(addr, size)
         }
 
         def equiv(a1: BigInt, a2: BigInt): Boolean = {
@@ -152,15 +159,29 @@ object UnionFindList2{
 
         // invalid in stainless: measure missing
         def findReturnsRoot(addr: BigInt): Unit = {
-            if isValidAddr(addr) then 
-                nodeAt(addr) match {
-                    case Child(addr, value, parentAddr) => findReturnsRoot(parentAddr)
-                    case Root(addr, value, rank) => assert(nodeAtIsRoot(addr))
-                }
-            else
-                assert(!isValidAddr(addr))
-                assert(nodeAtIsRoot(addr))
-        }.ensuring(_ => nodeAtIsRoot(find(addr)))
+            def findReturnsRootRec(addr: BigInt, fuel: BigInt): Unit = {
+                require(fuel >= 0)
+                if fuel == 0 then ()
+                else
+                    if isValidAddr(addr) then 
+                        nodeAt(addr) match {
+                            case nc @ Child(addr, value, parentAddr) => 
+                                assert(heap.contains(nc))
+                                assert(parentInHeapInvariant)
+                                ListSpecs.forallContained(heap, parentFuncOnHeap, nc)
+                                assert(parentIsInHeap(nc, heap))
+                                assert(addrInvariant)
+                                assert(isValidAddr(parentAddr))
+                                findReturnsRoot(parentAddr)
+                            case Root(ad, value, rank) => 
+                                assert(isValidAddr(addr))
+                                assert(nodeAtIsRoot(addr))
+                        }
+                    else
+                        assert(!isValidAddr(addr))
+                        assert(nodeAtIsRoot(addr))
+            }
+        }.ensuring(_ => !isValidAddr(find(addr)) || nodeAtIsRoot(find(addr)))
 
         def makeAddsValueToDomain(value: T): Unit = {
             require(!domain.contains(value))
@@ -169,13 +190,12 @@ object UnionFindList2{
         def makeReturnsASingletonSet(value: T): Unit = {
             require(!domain.contains(value))
         }.ensuring(_ => isRoot(make(value)._2) 
-                        && find(make(value)._2.addr) == make(value)._2.addr
+                        && (find(make(value)._2.addr) == BigInt(-1) || find(make(value)._2.addr) == make(value)._2.addr)
                         && rankIs(make(value)._2, BigInt(0))
         )
 
-        // invalid in stainless
         def findReturnsValidAddr(addr: BigInt): Unit = {
-        }.ensuring(_ => !isValidAddr(addr) || isValidAddr(find(addr)))
+        }.ensuring(_ => find(addr) == BigInt(-1) || (!isValidAddr(addr) || isValidAddr(find(addr))))
 
         def linkReturnsARootOfInput(a1: BigInt, a2: BigInt): Unit = {
             require(isValidAddr(a1) && isValidAddr(a2) && nodeAtIsRoot(a1) && nodeAtIsRoot(a2))

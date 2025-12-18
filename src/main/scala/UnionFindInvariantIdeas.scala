@@ -34,8 +34,9 @@ object UnionFindInvariantIdeas {
   def traverseBounded[T](start: Node[T], heap: List[Node[T]]): Boolean = {
     def traverseBoundedRec(n: Node[T]): BigInt = {
       n match
-        case Child(addr, value, parentAddr) => traverseBoundedRec(heap(addr))
-        case Root(addr, value, rank)        => BigInt(0)
+        case Child(addr, value, parentAddr) =>
+          traverseBoundedRec(heap(addr)) + 1
+        case Root(addr, value, rank) => BigInt(0)
     }
 
     traverseBoundedRec(start) < heap.size

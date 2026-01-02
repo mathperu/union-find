@@ -127,6 +127,17 @@ object UnionFindList2{
             
         }
 
+        // Lemma 2: Snoc Forall
+        // Proves that if P holds for list L and element X, it holds for L :+ X
+        def lemmaSnocForall[A](l: List[A], x: A, p: A => Boolean): Unit = {
+            require(l.forall(p))
+            require(p(x))
+            
+            ListSpecs.listAppendValidProp(List(x), l, p)
+            ListSpecs.snocIsAppend(l, x)
+            ()
+        }.ensuring(_ => (l :+ x).forall(p))
+
         // invariant timeout in stainless
         def make(value: T): (UF[T], Node[T]) = {
             require(!domain.contains(value))
@@ -134,6 +145,38 @@ object UnionFindList2{
             val addr = size
             val newNode = Root(addr, value, 0)
             val newHeap = heap :+ newNode
+
+            val singleton: List[Node[T]] = List(newNode)
+            
+            // Define predicates to check
+            val checkFinish = (n: Node[T]) => finishAtRoot(n, newHeap)
+            val checkBound  = (n: Node[T]) => traverseBounded(n, newHeap)
+            val checkAddr   = (n: Node[T]) => addrAndHeapMatch(n, newHeap)
+            val checkParent = (n: Node[T]) => parentIsInHeap(n, newHeap)
+
+            ListSpecs.snocIsAppend(heap, newNode)
+
+            // // Explicitly assert that both parts satisfy the predicates
+            assert(singleton.forall(checkFinish))
+            assert(heap.forall(checkFinish))
+            lemmaSnocForall(heap, newNode, checkFinish)
+            ListSpecs.listAppendValidProp(singleton, heap, checkFinish)
+
+            assert(singleton.forall(checkBound))
+            assert(heap.forall(checkBound))
+            ListSpecs.listAppendValidProp(singleton, heap, checkBound)
+
+            ListSpecs.snocIndex(heap, newNode, size)
+            assert(newHeap(size) == newNode) // sanity check
+            assert(singleton.forall(checkAddr))
+            assert(heap.forall(checkAddr))
+            ListSpecs.listAppendValidProp(singleton, heap, checkAddr)
+
+            assert(singleton.forall(checkParent))
+            assert(heap.forall(checkParent))
+            ListSpecs.listAppendValidProp(singleton, heap, checkParent)
+
+
             (UF(newHeap), newNode)
         }
 

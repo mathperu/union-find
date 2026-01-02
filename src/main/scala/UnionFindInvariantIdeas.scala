@@ -60,7 +60,12 @@ object UnionFindInvariantIdeas {
     }
   }
 
+  // ideas to see if we can use fuel without cheating
+  // - require that any List[Node[T]] has at least one root
+  // - require that any List[Node[T]] has children that eventually point to a root
+
   case class UF[T](heap: List[Node[T]]) {
+
     // invariant A
     require(heap.forall(finishAtRoot(_, heap)))
 

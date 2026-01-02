@@ -5,7 +5,7 @@ import stainless.collection.{List, ListSpecs}
 import stainless.annotation._
 import org.w3c.dom.ls.LSInput
 
-object UnionFindList2 {
+object UnionFindList3 {
 
   // Potential improvement: use rank as opposite of dist and decreases(heap.size - rank)
   sealed trait Node[T] {
@@ -65,6 +65,8 @@ object UnionFindList2 {
   def parentDecreases[T](n: Node[T], heap: List[Node[T]]): Boolean = {
     require(heap.contains(n))
     // TODO refactor
+
+    // require parent to be in heap as well !!
     require(n match
       case Child(addr, value, dist, parentAddr) => parentAddr < heap.size
       case Root(addr, value, dist, rank)        => true)
@@ -106,6 +108,11 @@ object UnionFindList2 {
     val addrFuncOnHeap = addrFunc(heap)
     val addrInvariant = heap.forall(addrFuncOnHeap)
     require(addrInvariant)
+
+    val distFunc = (heap: List[Node[T]]) => n => parentDecreases[T](n, heap)
+    val distFuncOnHeap = distFunc(heap)
+    val distInv = heap.forall(distFuncOnHeap)
+    require(distInv)
 
     // val travFunc = (heap: List[Node[T]]) => n => traverseBounded[T](n, heap)
     // val travFuncOnHeap = travFunc(heap)
@@ -180,7 +187,7 @@ object UnionFindList2 {
       //     else addr
       //   }
       //   findRec(addr, size)
-      decreases(heap(addr).dist)
+      decreases(nodeAt(addr).dist)
 
       nodeAt(addr) match {
         case Child(addr, value, _, parentAddr) => find(parentAddr)

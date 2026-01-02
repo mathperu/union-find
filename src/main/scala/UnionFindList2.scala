@@ -1,6 +1,6 @@
 import stainless.lang._
 import stainless.proof._
-import stainless.collection.{List, ListSpecs}
+import stainless.collection.{List, ListSpecs, Nil}
 import stainless.annotation._
 import stainless.collection.Cons
 
@@ -17,18 +17,20 @@ object UnionFindList2 {
       extends Node[T]
   case class Root[T](addr: BigInt, value: T, rank: BigInt) extends Node[T]
 
+  @inline
   def parentIsInHeap[T](n: Node[T], heap: List[Node[T]]): Boolean = {
-    if (0 <= n.addr && n.addr < heap.size) then
-      n match {
+    (0 <= n.addr && n.addr < heap.size) &&
+      (n match {
         case Child(_, _, pA) => 0 <= pA && pA < heap.size
         case _               => true
-      }
-    else false
+      })
   }
 
+  @inline
   def addrAndHeapMatch[T](n: Node[T], heap: List[Node[T]]): Boolean = {
-    if 0 <= n.addr && n.addr < heap.size then heap(n.addr) == n
-    else false
+    /* if 0 <= n.addr && n.addr < heap.size then heap(n.addr) == n
+    else false */
+    0 <= n.addr && n.addr < heap.size && heap(n.addr) == n
   }
 
   // invariant idea A: traversal is bounded by the heap's size
@@ -76,22 +78,57 @@ object UnionFindList2 {
 
   case class UF[T](heap: List[Node[T]]) {
     // Invariant I: parent address is always in the heap
+    @inline
     val parentFunc = (heap: List[Node[T]]) => n => parentIsInHeap[T](n, heap)
     val parentFuncOnHeap = parentFunc(heap)
-    val parentInHeapInvariant = heap.forall(parentFuncOnHeap)
-    require(parentInHeapInvariant)
+    require(OurListSpecs.forallRec(heap, parentFuncOnHeap))
+    //val parentInHeapInvariant = heap.forall(parentFuncOnHeap)
+    //require(parentInHeapInvariant)
     
     // parentFunc(oldHeap)(n) => parentFunc(oldHeap :+ t)(n) for all n in old heap
     // - in particular prove that parentFunc(oldHeap :+ t)(t) holds
     def parentInvAppend(l: List[Node[T]], n: Node[T]): Unit = {
-        require(l.forall(parentFunc(l)) && parentFunc(l :+ n)(n))
-    }.ensuring{_ => (l :+ n).forall(parentFunc(l :+ n))}
+        require(OurListSpecs.forallRec(l, parentFunc(l)) && parentFunc(l :+ n)(n))
+
+        def parentInvAppendElem(l: List[Node[T]], n: Node[T], e: Node[T]): Boolean = {
+            require(parentFunc(l)(e))
+            parentFunc((l :+ n))(e) because {
+                assert(0 <= e.addr && e.addr < l.size)
+                e match {
+                    case Child(_, _, pA) => assert(0 <= pA && pA < l.size)
+                    case _ => ()
+                }
+
+                (0 <= e.addr && e.addr < (l :+ n).size) &&
+                (e match {
+                    case Child(_, _, pA) => 0 <= pA && pA < (l :+ n).size
+                    case _               => true
+                })
+            }
+        }.holds
+        def checkAllRec(l: List[Node[T]], heap: List[Node[T]], n: Node[T]): Unit = {
+            require(OurListSpecs.forallRec(l, parentFunc(heap)))
+            l match {
+                case Nil() => ()
+                case Cons(head, tl) => 
+                    assert(parentFunc(heap)(head))
+                    assert(parentInvAppendElem(heap, n, head))
+                    checkAllRec(tl, heap, n)
+            }
+        }.ensuring(OurListSpecs.forallRec(l, parentFunc(heap :+ n)))
+
+        assert(OurListSpecs.forallRec(l, parentFunc(l)))
+        checkAllRec(l, l, n)
+        assert(OurListSpecs.forallRec(l, parentFunc(l :+ n)))
+        OurListSpecs.forallAppendRec(l, n, parentFunc(l :+ n))
+    }.ensuring(_ => OurListSpecs.forallRec((l :+ n), parentFunc(l :+ n)))
 
     // Invariant II: address matches position in heap
+    @inline
     val addrFunc = (heap: List[Node[T]]) => n => addrAndHeapMatch[T](n, heap)
     val addrFuncOnHeap = addrFunc(heap)
     val addrInvariant = heap.forall(addrFuncOnHeap)
-    require(addrInvariant)
+    //require(addrInvariant)
 
     // addrFunc(oldHeap)(n) => addrFunc(oldHeap :+ t)(n) for all n in old heap
     // - in particular prove that addrFunc(oldHeap :+ t)(t) holds
@@ -99,7 +136,8 @@ object UnionFindList2 {
         require(l.forall(addrFunc(l)) && addrFunc(l :+ n)(n))
 
         // To prove : every elem in l has address in the bounds in l :+ n
-        assert(l.forall(n => if (0 <= n.addr && n.addr < l.size) then l(n.addr) == n else false)) // TO
+        assert(l.forall(e => addrAndHeapMatch(e, l)))
+        //assert(l.forall(n => if (0 <= n.addr && n.addr < l.size) then l(n.addr) == n else false))
         assert(l.forall(n => 0 <= n.addr && n.addr < l.size && l(n.addr) == n))
         assert(l.forall(n => 0 <= n.addr && n.addr < l.size && 0 <= n.addr && n.addr < l.size && l(n.addr) == n))
         @inline
@@ -115,20 +153,25 @@ object UnionFindList2 {
         OurListSpecs.staysBoundedAppend(l, n, f)
 
         // To prove : every elem in l has address corresponding to its index in l :+ n
+        assert(l.forall(e => 0 <= e.addr && e.addr < (l :+ n).size && 
+                0 <= e.addr && e.addr < l.size && l(e.addr) == e))
+        assert(l.forall(e => 0 <= e.addr && e.addr < l.size && appendDoesNotChangeIndices(l, n, e.addr)))
+        assert(l.forall(e => 0 <= e.addr && e.addr < (l :+ n).size && (l :+ n)(e.addr) == e))
+        assert(l.forall(e => addrAndHeapMatch(e, (l :+ n))))
 
         assert(l.forall(addrFunc(l :+ n)))
         OurListSpecs.forallAppend(l, n, addrFunc(l :+ n))
     }.ensuring{_ => (l :+ n).forall(addrFunc(l :+ n))}
 
     // invariant III-A: any traversal finishes at a root
-    require(heap.forall(finishAtRoot(_, heap)))
+    //require(heap.forall(finishAtRoot(_, heap)))
 
     def rootInvAppend(l: List[Node[T]], n: Node[T]): Unit = {
         require(l.forall(finishAtRoot(_, l)) && finishAtRoot(n, l :+ n))
     }.ensuring{_ => (l :+ n).forall(finishAtRoot(_, l :+ n))}
 
     // invariant III-B: any traversal is bounded by the heap's size
-    require(heap.forall(traverseBounded(_, heap)))
+    //require(heap.forall(traverseBounded(_, heap)))
 
     def size: BigInt = heap.size
     def domain: List[T] = heap.map(n => n.value)
@@ -173,6 +216,8 @@ object UnionFindList2 {
       val addr = size
       val newNode = Root(addr, value, 0)
       val newHeap = heap :+ newNode
+      val pred: Node[T] => Boolean = e => parentIsInHeap(e, heap :+ newNode)
+      val pred2: Node[T] => Boolean = e => parentIsInHeap(e, newHeap)
       // check all invariants
 
       // Invariant I: parent address is always in the heap

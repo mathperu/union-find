@@ -12,6 +12,9 @@ object UnionFindList3 {
     val addr: BigInt
     val dist: BigInt
     val value: T
+
+    require(addr >= 0)
+    require(dist >= 0)
   }
 
   case class Child[T](addr: BigInt, value: T, dist: BigInt, parentAddr: BigInt)
@@ -22,6 +25,9 @@ object UnionFindList3 {
       extends Node[T] {
     require(dist == 0)
   }
+
+  // required to instantiate dist >= 0 proofs
+  def instantiateDistance[T](n: Node[T]): Unit = {}.ensuring(n.dist >= 0)
 
   def parentIsInHeap[T](n: Node[T], heap: List[Node[T]]): Boolean = {
     if (0 <= n.addr && n.addr < heap.size) then
@@ -62,43 +68,55 @@ object UnionFindList3 {
       case Nil() => false
   }
 
+  def isValidAddr[T](addr: BigInt, heap: List[Node[T]]): Boolean = {
+    addr >= 0 && addr < heap.size
+  }
+
   def parentDecreases[T](n: Node[T], heap: List[Node[T]]): Boolean = {
-    require(heap.contains(n))
-    // TODO refactor
+    // // either heap is empty or all properties must be satisfied
+    // require(heap.isEmpty || hasRoot(heap))
+    // require(heap.isEmpty || heap.contains(n))
+    // // TODO refactor
 
-    // require parent to be in heap as well !!
-    require(n match
-      case Child(addr, value, dist, parentAddr) => parentAddr < heap.size
-      case Root(addr, value, dist, rank)        => true)
+    // // require parent to be in heap as well !!
+    // require(heap.isEmpty || (n match
+    //   case Child(addr, value, dist, parentAddr) => parentAddr < heap.size
+    //   case Root(addr, value, dist, rank)        => true))
 
-    n match
-      case Child(addr, value, dist, parentAddr) =>
-        n.dist == heap(parentAddr).dist + 1
-      case Root(addr, value, dist, rank) => true
+    if heap.isEmpty then true
+    else
+      n match
+        case Child(addr, value, dist, parentAddr) =>
+          if isValidAddr(parentAddr, heap) then
+            n.dist == heap(parentAddr).dist + 1
+          else false
+        case Root(addr, value, dist, rank) => true
   }
 
   // invariant idea A: traversal is bounded by the heap's size
-  def traverseBounded[T](start: Node[T], heap: List[Node[T]]): Boolean = {
-    require(hasRoot(heap))
-    require(heap.contains(start))
-    require(heap.forall(addrAndHeapMatch(_, heap)))
-    require(noDuplicates(heap))
-    require(heap.forall(parentDecreases(_, heap)))
+  // def traverseBounded[T](start: Node[T], heap: List[Node[T]]): Boolean = {
+  //   require(hasRoot(heap))
+  //   require(heap.contains(start))
+  //   require(heap.forall(addrAndHeapMatch(_, heap)))
+  //   require(noDuplicates(heap))
+  //   require(heap.forall(parentDecreases(_, heap)))
 
-    def traverseBoundedRec(n: Node[T]): BigInt = {
-      require(heap.contains(n))
-      decreases(n.dist)
+  //   def traverseBoundedRec(n: Node[T]): BigInt = {
+  //     require(heap.contains(n))
+  //     decreases(n.dist)
 
-      n match
-        case Child(addr, value, _, parentAddr) =>
-          traverseBoundedRec(heap(parentAddr)) + 1
-        case Root(addr, value, _, rank) => BigInt(0)
-    }
+  //     n match
+  //       case Child(addr, value, _, parentAddr) =>
+  //         traverseBoundedRec(heap(parentAddr)) + 1
+  //       case Root(addr, value, _, rank) => BigInt(0)
+  //   }
 
-    traverseBoundedRec(start) < heap.size
-  }
+  //   traverseBoundedRec(start) < heap.size
+  // }
 
   case class UF[T](heap: List[Node[T]]) {
+    require(hasRoot(heap))
+
     val parentFunc = (heap: List[Node[T]]) => n => parentIsInHeap[T](n, heap)
     val parentFuncOnHeap = parentFunc(heap)
     val parentInHeapInvariant = heap.forall(parentFuncOnHeap)
@@ -159,7 +177,6 @@ object UnionFindList3 {
         case Child(addr, value, _, parentAddr) => false
         case Root(addr, value, _, rank)        => rank == x
       }
-
     }
 
     // invariant timeout in stainless
@@ -174,28 +191,72 @@ object UnionFindList3 {
 
     // no path compression
     // provide address and finds parent's address
+
+    //   def findRec(addr: BigInt, fuel: BigInt): BigInt = {
+    //     require(fuel >= 0)
+    //     decreases(fuel)
+    //     if fuel == 0 then -1
+    //     else if isValidAddr(addr) then
+    //       nodeAt(addr) match {
+    //         case Child(addr, value, parentAddr) => findRec(parentAddr, fuel - 1)
+    //         case Root(ad, value, rank)          => addr
+    //       }
+    //     else addr
+    //   }
+    //   findRec(addr, size)
     def find(addr: BigInt): BigInt = {
-      //   def findRec(addr: BigInt, fuel: BigInt): BigInt = {
-      //     require(fuel >= 0)
-      //     decreases(fuel)
-      //     if fuel == 0 then -1
-      //     else if isValidAddr(addr) then
-      //       nodeAt(addr) match {
-      //         case Child(addr, value, parentAddr) => findRec(parentAddr, fuel - 1)
-      //         case Root(ad, value, rank)          => addr
-      //       }
-      //     else addr
-      //   }
-      //   findRec(addr, size)
-      decreases(nodeAt(addr).dist)
+      require(isValidAddr(addr))
+      val f = nodeAt(addr)
+      require(f.dist >= 0)
+      decreases(f.dist)
 
       nodeAt(addr) match {
-        case Child(addr, value, _, parentAddr) => find(parentAddr)
-        case Root(addr, value, _, rank)        => addr
+        case Child(addr, value, dist, parentAddr) => {
+          // prove: isValidAddr(parentAddr) using parentInv
+          isValidAddr(parentAddr) because {
+            heap.contains(f)
+            ListSpecs.forallContained(heap, parentFuncOnHeap, f)
+            parentIsInHeap(f, heap)
+          }
+
+          check(isValidAddr(parentAddr))
+          val parent = nodeAt(parentAddr)
+          check(distInv)
+
+          (parent.dist < dist) because {
+            heap.contains(f)
+            ListSpecs.forallContained(heap, distFuncOnHeap, f)
+            parentDecreases(f, heap)
+          }
+
+          (parent.dist >= 0) because {
+            heap.contains(f)
+            parent match
+              case Child(addr, value, dist, parentAddr) => dist > 0
+              case Root(addr, value, dist, rank)        => dist == 0
+          }
+
+          instantiateDistance(parent)
+          check(parent.dist >= 0)
+
+          find(parentAddr)
+        }
+        case Root(addr, value, dist, rank) => {
+          (dist == 0) because {
+            heap.contains(f)
+          }
+          addr
+        }
       }
     }
 
     def equiv(a1: BigInt, a2: BigInt): Boolean = {
+      require(isValidAddr(a1))
+      require(isValidAddr(a2))
+
+      instantiateDistance(nodeAt(a1))
+      instantiateDistance(nodeAt(a2))
+
       find(a1) == find(a2)
     }
 

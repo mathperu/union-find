@@ -44,9 +44,9 @@ object OurListSpecs {
         }
     }.ensuring{_ => (l :+ n)(i) == l(i)}
 
-    def weakenForAll[T](l: List[T], p: T => Boolean, q: T => Boolean): Unit = {
-        require(l.forall(e => p(e) && q(e)))
-    }.ensuring(_ => l.forall(p))
+    // def weakenForAll[T](l: List[T], p: T => Boolean, q: T => Boolean): Unit = {
+    //     require(l.forall(e => p(e) && q(e)))
+    // }.ensuring(_ => l.forall(p))
 
     /* def predOnSameLists[T](l1: List[T], l2: List[T], m1: List[T], m2: List[T], p: (T, List[T]) => Boolean): Unit = {
         require(l1 == l2 && m1 == m2 && forallRec(l1, p(_, m1)))

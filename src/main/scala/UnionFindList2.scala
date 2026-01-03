@@ -162,9 +162,9 @@ object UnionFindList2 {
     // invariant III-A: any traversal finishes at a root
     //require(heap.forall(finishAtRoot(_, heap)))
 
-    def rootInvAppend(l: List[Node[T]], n: Node[T]): Unit = {
-        require(l.forall(finishAtRoot(_, l)) && finishAtRoot(n, l :+ n))
-    }.ensuring{_ => (l :+ n).forall(finishAtRoot(_, l :+ n))}
+    // def rootInvAppend(l: List[Node[T]], n: Node[T]): Unit = {
+    //     require(l.forall(finishAtRoot(_, l)) && finishAtRoot(n, l :+ n))
+    // }.ensuring{_ => (l :+ n).forall(finishAtRoot(_, l :+ n))}
 
     // invariant III-B: any traversal is bounded by the heap's size
     //require(heap.forall(traverseBounded(_, heap)))

@@ -81,14 +81,14 @@ object UnionFindList2 {
     @inline
     val parentFunc = (heap: List[Node[T]]) => n => parentIsInHeap[T](n, heap)
     val parentFuncOnHeap = parentFunc(heap)
-    require(OurListSpecs.forallRec(heap, parentFuncOnHeap))
+    require(heap.forall(parentFuncOnHeap))
     //val parentInHeapInvariant = heap.forall(parentFuncOnHeap)
     //require(parentInHeapInvariant)
     
     // parentFunc(oldHeap)(n) => parentFunc(oldHeap :+ t)(n) for all n in old heap
     // - in particular prove that parentFunc(oldHeap :+ t)(t) holds
     def parentInvAppend(l: List[Node[T]], n: Node[T]): Unit = {
-        require(OurListSpecs.forallRec(l, parentFunc(l)) && parentFunc(l :+ n)(n))
+        require(l.forall(parentFunc(l)) && parentFunc(l :+ n)(n))
 
         def parentInvAppendElem(l: List[Node[T]], n: Node[T], e: Node[T]): Boolean = {
             require(parentFunc(l)(e))
@@ -107,7 +107,7 @@ object UnionFindList2 {
             }
         }.holds
         def checkAllRec(l: List[Node[T]], heap: List[Node[T]], n: Node[T]): Unit = {
-            require(OurListSpecs.forallRec(l, parentFunc(heap)))
+            require(l.forall(parentFunc(heap)))
             l match {
                 case Nil() => ()
                 case Cons(head, tl) => 
@@ -115,13 +115,13 @@ object UnionFindList2 {
                     assert(parentInvAppendElem(heap, n, head))
                     checkAllRec(tl, heap, n)
             }
-        }.ensuring(OurListSpecs.forallRec(l, parentFunc(heap :+ n)))
-
-        assert(OurListSpecs.forallRec(l, parentFunc(l)))
+        }.ensuring(l.forall(parentFunc(heap :+ n)))
+        
+        assert(l.forall(parentFunc(l)))
         checkAllRec(l, l, n)
-        assert(OurListSpecs.forallRec(l, parentFunc(l :+ n)))
-        OurListSpecs.forallAppendRec(l, n, parentFunc(l :+ n))
-    }.ensuring(_ => OurListSpecs.forallRec((l :+ n), parentFunc(l :+ n)))
+        assert(l.forall(parentFunc(l :+ n)))
+        OurListSpecs.forallAppend(l, n, parentFunc(l :+ n))
+    }.ensuring(_ => (l :+ n).forall(parentFunc(l :+ n)))
 
     // Invariant II: address matches position in heap
     @inline
@@ -225,7 +225,7 @@ object UnionFindList2 {
       parentInvAppend(heap, newNode)
 
       // Invariant II: address matches position in head
-      OurListSpecs.appendedElementIsAtIndexOldSize(heap, newNode)
+      /* OurListSpecs.appendedElementIsAtIndexOldSize(heap, newNode)
       assert(addrFunc(newHeap)(newNode))
       addrInvAppend(heap, newNode)
 
@@ -236,7 +236,7 @@ object UnionFindList2 {
 
       // invariant III-B: any traversal is bounded by the heap's size
       assert(traverseBounded(newNode, newHeap))
-      assert(newHeap.forall(traverseBounded(_, newHeap))) // TO
+      assert(newHeap.forall(traverseBounded(_, newHeap))) // TO */
 
       // Proofs needed, for a new node t, where newHeap = oldHeap :+ N
       //

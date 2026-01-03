@@ -10,6 +10,18 @@ object OurListSpecs {
 
     def forallAppend[T](l: List[T], elem: T, p: T => Boolean): Unit = {
         require(l.forall(p) && p(elem))
+        decreases(l)
+        (l :+ elem, l) match {
+            case (Nil(), _) => ()
+            case (Cons(h, Nil()), Nil()) => 
+                assert(h == elem)
+                assert(p(elem))
+            case (Cons(h1, t1), Cons(h2, t2)) => 
+                assert(h1 == h2)
+                assert(p(h1))
+                assert(p(h2))
+                forallAppend(t2, elem, p)
+        }
     }.ensuring{_ => (l :+ elem).forall(p)}
 
     def staysBoundedAppend[T](l: List[T], elem: T, f: T => BigInt): Unit = {

@@ -28,8 +28,6 @@ object UnionFindList2 {
 
   @inline
   def addrAndHeapMatch[T](n: Node[T], heap: List[Node[T]]): Boolean = {
-    /* if 0 <= n.addr && n.addr < heap.size then heap(n.addr) == n
-    else false */
     0 <= n.addr && n.addr < heap.size && heap(n.addr) == n
   }
 
@@ -127,38 +125,36 @@ object UnionFindList2 {
     @inline
     val addrFunc = (heap: List[Node[T]]) => n => addrAndHeapMatch[T](n, heap)
     val addrFuncOnHeap = addrFunc(heap)
-    val addrInvariant = heap.forall(addrFuncOnHeap)
-    //require(addrInvariant)
+    require(heap.forall(addrFuncOnHeap))
 
     // addrFunc(oldHeap)(n) => addrFunc(oldHeap :+ t)(n) for all n in old heap
     // - in particular prove that addrFunc(oldHeap :+ t)(t) holds
     def addrInvAppend(l: List[Node[T]], n: Node[T]): Unit = {
         require(l.forall(addrFunc(l)) && addrFunc(l :+ n)(n))
 
-        // To prove : every elem in l has address in the bounds in l :+ n
-        assert(l.forall(e => addrAndHeapMatch(e, l)))
-        //assert(l.forall(n => if (0 <= n.addr && n.addr < l.size) then l(n.addr) == n else false))
-        assert(l.forall(n => 0 <= n.addr && n.addr < l.size && l(n.addr) == n))
-        assert(l.forall(n => 0 <= n.addr && n.addr < l.size && 0 <= n.addr && n.addr < l.size && l(n.addr) == n))
-        @inline
-        def p: Node[T] => Boolean = n => 0 <= n.addr && n.addr < l.size
-        @inline
-        def q: Node[T] => Boolean = n => 0 <= n.addr && n.addr < l.size && l(n.addr) == n
-        assert(l.forall(n => p(n) && q(n)))
-        OurListSpecs.weakenForAll(l, p, q)
-        assert(l.forall(p))
-        assert(l.forall(n => 0 <= n.addr && n.addr < l.size))
-        @inline
-        def f: Node[T] => BigInt = n => n.addr
-        OurListSpecs.staysBoundedAppend(l, n, f)
+        def addrInvAppendElem(l: List[Node[T]], n: Node[T], e: Node[T]): Boolean = {
+            require(addrFunc(l)(e))
+            addrFunc((l :+ n))(e) because {
+                assert(0 <= e.addr && e.addr < l.size)
+                OurListSpecs.appendPreservesIndices(l, n, e.addr)
+                assert(l(e.addr) == e)
 
-        // To prove : every elem in l has address corresponding to its index in l :+ n
-        assert(l.forall(e => 0 <= e.addr && e.addr < (l :+ n).size && 
-                0 <= e.addr && e.addr < l.size && l(e.addr) == e))
-        assert(l.forall(e => 0 <= e.addr && e.addr < l.size && appendDoesNotChangeIndices(l, n, e.addr)))
-        assert(l.forall(e => 0 <= e.addr && e.addr < (l :+ n).size && (l :+ n)(e.addr) == e))
-        assert(l.forall(e => addrAndHeapMatch(e, (l :+ n))))
-
+                (0 <= e.addr && e.addr < (l :+ n).size) && (l :+ n)(e.addr) == e
+            }
+        }.holds
+        def checkAllRec(l: List[Node[T]], heap: List[Node[T]], n: Node[T]): Unit = {
+            require(l.forall(addrFunc(heap)))
+            l match {
+                case Nil() => ()
+                case Cons(head, tl) => 
+                    assert(addrFunc(heap)(head))
+                    assert(addrInvAppendElem(heap, n, head))
+                    checkAllRec(tl, heap, n)
+            }
+        }.ensuring(l.forall(addrFunc(heap :+ n)))
+        
+        assert(l.forall(addrFunc(l)))
+        checkAllRec(l, l, n)
         assert(l.forall(addrFunc(l :+ n)))
         OurListSpecs.forallAppend(l, n, addrFunc(l :+ n))
     }.ensuring{_ => (l :+ n).forall(addrFunc(l :+ n))}
@@ -225,11 +221,11 @@ object UnionFindList2 {
       parentInvAppend(heap, newNode)
 
       // Invariant II: address matches position in head
-      /* OurListSpecs.appendedElementIsAtIndexOldSize(heap, newNode)
+      OurListSpecs.appendedElementIsAtIndexOldSize(heap, newNode)
       assert(addrFunc(newHeap)(newNode))
       addrInvAppend(heap, newNode)
 
-      // invariant III-A: any traversal finishes at a root
+      /* // invariant III-A: any traversal finishes at a root
       assert(finishAtRoot(newNode, newHeap))
       rootInvAppend(heap, newNode)
       assert(newHeap.forall(finishAtRoot(_, newHeap))) // TO, maybe should define invariant III like I and II ?

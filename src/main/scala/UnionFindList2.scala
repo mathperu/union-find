@@ -392,12 +392,9 @@ object UnionFindList2 {
         }
       }.ensuring(_ => (l :+ e).map(_.value) == l.map(_.value) :+ e.value)
 
-      // Apply the lemma to our specific heap and new node
       mapSnoc(heap, newNode)
       
-      // Now Stainless knows: newHeap.map(_.value) == oldHeap.map(_.value) :+ value
       assert(newUF.domain == domain :+ value)
-      // And it knows that a list ending in 'value' contains 'value'
       assert(newUF.domain.contains(value))
     }.ensuring(_ => make(value)._1.domain.contains(value))
 

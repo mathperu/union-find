@@ -26,42 +26,34 @@ object InvariantsHelpers {
     def parentInvAppend[T](l: List[Node[T]], n: Node[T]): Unit = {
         require(l.forall(parentFunc(l)) && parentFunc(l :+ n)(n))
 
-        def parentInvAppendElem(l: List[Node[T]], n: Node[T], e: Node[T]): Boolean = {
-            require(parentFunc(l)(e))
-            parentFunc((l :+ n))(e) because {
-                assert(0 <= e.addr && e.addr < l.size)
-                e match {
-                    case Child(_, _, pA) => assert(0 <= pA && pA < l.size)
-                    case _ => ()
-                }
-
-                (0 <= e.addr && e.addr < (l :+ n).size) &&
-                (e match {
-                    case Child(_, _, pA) => 0 <= pA && pA < (l :+ n).size
-                    case _               => true
-                })
-            }
-        }.holds
         def parentInvAppendRec(l: List[Node[T]], heap: List[Node[T]], n: Node[T]): Unit = {
             require(l.forall(parentFunc(heap)))
             l match {
                 case Nil() => ()
-                case Cons(head, tl) => 
-                    assert(parentFunc(heap)(head))
-                    assert(parentInvAppendElem(heap, n, head))
-                    parentInvAppendRec(tl, heap, n)
+                case Cons(h, t) => parentInvAppendRec(t, heap, n)
             }
         }.ensuring(l.forall(parentFunc(heap :+ n)))
         
-        assert(l.forall(parentFunc(l)))
         parentInvAppendRec(l, l, n)
-        assert(l.forall(parentFunc(l :+ n)))
         OurListSpecs.forallAppend(l, n, parentFunc(l :+ n))
     }.ensuring(_ => (l :+ n).forall(parentFunc(l :+ n)))
 
     def parentInvUpdate[T](l: List[Node[T]], addr: BigInt, n: Node[T]): Unit = {
         require(l.forall(parentFunc(l)) && parentFunc(l)(n))
         require(0 <= addr && addr < l.size)
+
+        def parentInvUpdateRec(heap: List[Node[T]], l: List[Node[T]], addr: BigInt, n: Node[T]): Unit = {
+            require(0 <= addr && addr < heap.size)
+            require(l.forall(parentFunc(heap)))
+            
+            l match {
+                case Nil() => 
+                case Cons(h, t) => parentInvUpdateRec(heap, t, addr, n)
+            }
+        }.ensuring(l.forall(parentFunc(heap.updated(addr, n))))
+
+        parentInvUpdateRec(l, l, addr, n)
+        OurListSpecs.forallUpdate(l, addr, n, parentFunc(l.updated(addr, n)))
     }.ensuring{_ => (l.updated(addr, n)).forall(parentFunc(l.updated(addr, n)))}
 
 
@@ -97,9 +89,7 @@ object InvariantsHelpers {
             }
         }.ensuring(l.forall(addrFunc(heap :+ n)))
         
-        assert(l.forall(addrFunc(l)))
         addrInvAppendRec(l, l, n)
-        assert(l.forall(addrFunc(l :+ n)))
         OurListSpecs.forallAppend(l, n, addrFunc(l :+ n))
     }.ensuring{_ => (l :+ n).forall(addrFunc(l :+ n))}
 

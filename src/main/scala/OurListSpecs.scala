@@ -129,7 +129,7 @@ object OurListSpecs {
     def mapDistributesOverAppend[T, U](l: List[T], elem: T, f: T => U): Unit = {
         l match {
             case Nil() => ()
-            case Cons(h, t) => mapAppend(t, elem, f)
+            case Cons(h, t) => mapDistributesOverAppend(t, elem, f)
         }
     }.ensuring(_ => l.map(f) :+ f(elem) == (l :+ elem).map(f))
 

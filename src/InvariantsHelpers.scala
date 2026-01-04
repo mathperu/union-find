@@ -185,6 +185,7 @@ object InvariantsHelpers {
         heap: List[Node[T]],
         n: Node[T]
     ): Unit = {
+      require(heap.forall(rankFunc(heap)))
       require(l.forall(rankFunc(heap)))
       require(isRoot(n))
       // require l to be a subset of heap
@@ -204,6 +205,7 @@ object InvariantsHelpers {
               // fails because stainless thinks new root can be parent
               // check(parentAddr != n.addr)
               check(heap.contains(h))
+              check(heap.forall(rankFunc(heap)))
               ListSpecs.forallContained(heap, rankFunc(heap), h)
               check(heap(parentAddr) != n)
               check(

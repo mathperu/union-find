@@ -11,6 +11,10 @@ import UnionFindList._
 
 object InvariantsHelpers {
 
+  def isValidAddr[T](addr: BigInt, heap: List[Node[T]]): Boolean = {
+    addr >= 0 && addr < heap.size
+  }
+
   // Invariant I: parent address is always in the heap
   @inline
   def parentIsInHeap[T](n: Node[T], heap: List[Node[T]]): Boolean = {
@@ -108,7 +112,7 @@ object InvariantsHelpers {
     OurListSpecs.forallAppend(l, n, addrFunc(l :+ n))
   }.ensuring { _ => (l :+ n).forall(addrFunc(l :+ n)) }
 
-  // Invariant IV implies invariant II
+  // Invariant III implies invariant II
   def rangeInvImpliesAddrInv[T](l: List[Node[T]]): Unit = {
     require(l.map(_.addr) == List.range(0, l.size))
 
@@ -136,7 +140,7 @@ object InvariantsHelpers {
     rangeInvImpliesAddrInvRec(l, l, 0)
   }.ensuring(_ => l.forall(addrFunc(l)))
 
-  /** Invariant III: parent's rank is always strictly greater than child's rank
+  /** Invariant IV: parent's rank is always strictly greater than child's rank
     *
     * @param n
     * @param heap
@@ -145,27 +149,23 @@ object InvariantsHelpers {
     *   - n's parent must be in heap (if n is a Child)
     *   - any root must have rank less than or equal to heap size
     */
-  def parentDecreases[T](n: Node[T], heap: List[Node[T]]): Boolean = {
-    if heap.isEmpty then true
-    // else if !isValidAddr(n.addr, heap) then false <- not necessarily needed…
-    else
-      n match
-        case Child(addr, value, dist, parentAddr) =>
-          if isValidAddr(parentAddr, heap) then heap(parentAddr).rank > n.rank
-          else false
-        case Root(addr, value, rank) => rank <= heap.size
-  }
-
-  def isValidAddr[T](addr: BigInt, heap: List[Node[T]]): Boolean = {
-    addr >= 0 && addr < heap.size
+  def rankDecreasesAlongEdges[T](n: Node[T], heap: List[Node[T]]): Boolean = {
+    !isValidAddr(n.addr, heap) || (n match {
+      case Child(addr, value, rank, parentAddr) => 
+        isValidAddr(parentAddr, heap) && heap(parentAddr).rank > n.rank
+      case Root(addr, value, rank) => rank <= heap.size
+    })
   }
 
   def rankFunc[T] = (heap: List[Node[T]]) =>
-    (n: Node[T]) => parentDecreases[T](n, heap)
+    (n: Node[T]) => rankDecreasesAlongEdges[T](n, heap)
 
-  // Invariant IV: rank of a node is less than or equal to the size of the heap
+  // Invariant V: rank of a node is less than or equal to the size of the heap
   def boundedFunc[T] = (heap: List[Node[T]]) =>
     (n: Node[T]) => n.rank <= heap.size
+
+  // Invariant IV implies invariant V
+  
 
   // maybe other invariants?
   // domain is a list

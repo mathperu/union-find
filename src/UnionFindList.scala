@@ -47,13 +47,13 @@ object UnionFindList {
     val addrFuncOnHeap = addrFunc(heap)
     require(heap.forall(addrFuncOnHeap))
 
-    // Invariant III: rank of a node is less than or equal to its parent's rank
+    // Invariant III: addresses are correct
+    require(addresses == List.range(0, size))
+
+    // Invariant IV: rank of a node is less than or equal to its parent's rank
     val rankFuncOnHeap = rankFunc(heap)
     val rankInv = heap.forall(rankFuncOnHeap)
     require(rankInv)
-
-    // Invariant IV: addresses are correct
-    require(addresses == List.range(0, size))
 
     // Invariant V: rank of a node is bounded by the size of the heap it's in
     //    TODO this is technically covered by distFunc, it might be better to derive this as a lemma

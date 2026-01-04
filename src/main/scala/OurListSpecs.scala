@@ -7,6 +7,9 @@ import stainless.annotation._
 import stainless.collection.Cons
 
 object OurListSpecs {
+
+    // Append lemmas
+
     def appendedElementIsAtIndexOldSize[T](l: List[T], elem: T): Unit = {
         decreases(l)
         l match {
@@ -31,17 +34,6 @@ object OurListSpecs {
         }
     }.ensuring{_ => (l :+ elem).forall(p)}
 
-    def forallUpdate[T](l: List[T], addr: BigInt, elem: T, p: T => Boolean): Unit = {
-        require(0 <= addr && addr < l.size)
-        require(l.forall(p) && p(elem))
-        
-        if addr == 0 then ()
-        else l match {
-            case Nil() => ()
-            case Cons(h, t) => forallUpdate(t, addr - 1, elem, p)
-        }
-    }.ensuring(_ => (l.updated(addr, elem)).forall(p))
-
     def appendPreservesIndices[T](l: List[T], n: T, i: BigInt): Unit = {
         require(0 <= i && i < l.size)
         decreases(l)
@@ -56,6 +48,83 @@ object OurListSpecs {
                 else appendPreservesIndices(t2, n, i-1)
         }
     }.ensuring{_ => (l :+ n)(i) == l(i)}
+
+    // Update lemmas
+
+    def forallUpdate[T](l: List[T], addr: BigInt, elem: T, p: T => Boolean): Unit = {
+        require(0 <= addr && addr < l.size)
+        require(l.forall(p) && p(elem))
+        
+        if addr == 0 then ()
+        else l match {
+            case Nil() => ()
+            case Cons(h, t) => forallUpdate(t, addr - 1, elem, p)
+        }
+    }.ensuring(_ => (l.updated(addr, elem)).forall(p))
+
+    // Slice lemmas
+
+    def sliceCons[T](l: List[T], from: BigInt, until: BigInt): Unit = {
+        require(0 <= from && from < l.size && 0 <= until && until <= l.size)
+        require(from < until)
+         l match {
+            case Nil() => ()
+            case Cons(h, t) =>
+                if (from == 0) then ()
+                else sliceCons(t, from - 1, until - 1)
+        }
+    }.ensuring(_ => l.slice(from, until) == Cons(l(from), l.slice(from + 1, until)))
+
+    def sliceAtIndex[T](l1: List[T], l2: List[T], from: BigInt, until: BigInt, index: BigInt): Unit = {
+        require(0 <= from && from < l2.size)
+        require(0 <= until && until <= l2.size)
+        require(from <= until)
+        require(l1 == l2.slice(from, until))
+        require(from <= index && index < until)
+
+        decreases(until - from)
+
+        if (index == from) then l1 match {
+                case Cons(h, t) =>
+                    sliceCons(l2, from, until)
+                    assert(h == l2(from))
+                case Nil() => ()
+        }
+        else l1 match {
+                case Cons(h, t) =>
+                    sliceCons(l2, from, until)
+                    sliceAtIndex(t, l2, from + 1, until, index)
+                case Nil() => ()
+        }
+    }.ensuring{_ => l1(index - from) == l2(index)}
+
+    def sliceTail[T](l1: List[T], l2: List[T], from: BigInt, until: BigInt): Unit = {
+        require(0 <= from && from < l2.size)
+        require(0 <= until && until <= l2.size)
+        require(from <= until)
+        require(l1 == l2.slice(from, until))
+        require(l1.size > 0)
+
+        assert(from < until)
+        l1 match {
+            case Nil() => ()
+            case Cons(h1, t1) => 
+                sliceCons(l2, from, until)
+        }
+    }.ensuring{_ => l1 match {
+        case Nil() => true
+        case Cons(h1, t1) => t1 == l2.slice(from + 1, until)
+    }}
+
+    def sliceZeroSize[T](l: List[T]): Unit = {
+        decreases(l)
+        l match {
+            case Nil() => ()
+            case Cons(h, t) => sliceZeroSize(t)
+        }
+    }.ensuring{_ => l == l.slice(0, l.size)}
+
+    // Map lemmas
 
     //TODO rename with actual name of property
     def mapAppend[T, U](l: List[T], elem: T, f: T => U): Unit = {
@@ -86,6 +155,8 @@ object OurListSpecs {
         }
     }.ensuring{_ => l.map(f)(index) == f(l(index))}
 
+    // Range lemmas
+
     def rangeAppend(start: BigInt, until: BigInt): Unit = {
         require(start <= until)
         decreases(until - start)
@@ -99,23 +170,4 @@ object OurListSpecs {
         if (index == 0) then ()
         else rangeAtIndexPlusStartIsIndexPlusStart(start + 1, until, index - 1)
     }.ensuring(_ => List.range(start, until)(index) == start + index)
-
-    /* def weakenForAll[T](l: List[T], p: T => Boolean, q: T => Boolean): Unit = {
-        require(l.forall(e => p(e) && q(e)))
-    }.ensuring(_ => l.forall(p)) */
-
-    /* def predOnSameLists[T](l1: List[T], l2: List[T], m1: List[T], m2: List[T], p: (T, List[T]) => Boolean): Unit = {
-        require(l1 == l2 && m1 == m2 && forallRec(l1, p(_, m1)))
-        (l1, l2) match {
-            case (Nil(), Nil()) => ()
-            case (Cons(h1, t1), Cons(h2, t2)) => 
-                assert(h1 == h2)
-                assert(m1 == m2)
-                assert(p(h1, m1))
-                assert(p(h2, m2))
-                assert(t1 == t2)
-                assert(forallRec(t1, p(_, m1)))
-                predOnSameLists(t1, t2, m1, m2, p)
-        }
-    }.ensuring(_ => forallRec(l2, p(_, m2))) */
 }

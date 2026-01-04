@@ -65,31 +65,17 @@ object UnionFindList2 {
     def set(addr: BigInt, n: Node[T]): UF[T] =
       require(isValidAddr(addr))
       require(isValidAddr(n.addr))
-      //require(addrFuncOnHeap(n))
       require(n.addr == addr)
       require(parentFuncOnHeap(n))
 
       val newHeap = heap.updated(addr, n)
-
-      // n has parent in list: root -> trivial, node -> required => require() ok
-      // n is not in list, so address cannot match heap(n.addr) -> do not require
-      // addr and n.addr must be valid
-
-      // to prove
-      // forall on update : parent in list
-      // forall on update : address match: for n, because is updated, for e not n: because it did before
-
-      /* assert(heap.forall(addrFuncOnHeap))
-      OurListSpecs.forallUpdate(heap, n, addr, addrFuncOnHeap)
-      assert(heap.forall(parentFuncOnHeap))
-      OurListSpecs.forallUpdate(heap, n, addr, parentFuncOnHeap) */
 
       // invariant IV
       OurListSpecs.mapAtIndex(heap, addr, _.addr)
       OurListSpecs.rangeAtIndexPlusStartIsIndexPlusStart(0, heap.size, addr)
       OurListSpecs.mapUpdate(heap, addr, n, _.addr)
 
-      addrInvUpdate(heap, addr, n)
+      rangeInvImpliesAddrInv(newHeap)
       parentInvUpdate(heap, addr, n)
 
       UF(newHeap)

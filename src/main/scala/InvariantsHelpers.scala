@@ -82,10 +82,10 @@ object InvariantsHelpers {
             require(l.forall(addrFunc(heap)))
             l match {
                 case Nil() => ()
-                case Cons(head, tl) => 
-                    assert(addrFunc(heap)(head))
-                    assert(addrInvAppendElem(heap, n, head))
-                    addrInvAppendRec(tl, heap, n)
+                case Cons(h, t) => 
+                    assert(addrFunc(heap)(h))
+                    assert(addrInvAppendElem(heap, n, h))
+                    addrInvAppendRec(t, heap, n)
             }
         }.ensuring(l.forall(addrFunc(heap :+ n)))
         
@@ -93,35 +93,30 @@ object InvariantsHelpers {
         OurListSpecs.forallAppend(l, n, addrFunc(l :+ n))
     }.ensuring{_ => (l :+ n).forall(addrFunc(l :+ n))}
 
-    def addrInvUpdate[T](l: List[Node[T]], addr: BigInt, n: Node[T]): Unit = {
-        require(l.forall(addrFunc(l)))
-        require(0 <= n.addr && n.addr < l.size)
-        require(0 <= addr && addr < l.size)
-        require(addr == n.addr)
+    // Invariant IV implies invariant II
+
+    def rangeInvImpliesAddrInv[T](l: List[Node[T]]): Unit = {
         require(l.map(_.addr) == List.range(0, l.size))
-    }.ensuring(_ => (l.updated(addr, n)).forall(addrFunc(l.updated(addr, n))))
 
-    /* def updatePreservesInvariants(l: List[Node[T]], addr: BigInt, n: Node[T], heap: List[Node[T]]): Unit = {
-        require(l.forall(addrFunc(heap)) && l.forall(parentFunc(heap)))
-        require(addrFunc(heap)(n) && parentFunc(heap)(n))
-        require(0 <= addr && addr < l.size)
-        //require(n.addr == addr)
-        decreases(l)
-        l match {
-          case Nil() => ()
-          case Cons(h, t) => 
-            if (addr == 0) then 
-              assert(addrFunc(heap)(n) && parentFunc(heap)(n))
-              updatePreservesInvariants(t, addr-1, n, heap)
-            else 
-              assert(addrFunc(heap)(h))
-              assert(parentFunc(heap)(h))
-              updatePreservesInvariants(t, addr-1, n, heap)
-        }
-      }.ensuring((l.updated(addr, n)).forall(addrFunc(l.updated(addr, n))) 
-                  && (l.updated(addr, n)).forall(parentFunc(l.updated(addr, n))))
+        def rangeInvImpliesAddrInvRec(l: List[Node[T]], heap: List[Node[T]], from: BigInt): Unit = {
+            require(heap.map(_.addr) == List.range(0, heap.size))
+            require(l.map(_.addr) == List.range(from, from + l.size))
+            require(0 <= from)
+            require(from + l.size == heap.size)
+            require(l == heap.slice(from, heap.size))
+            l match {
+                case Nil() => ()
+                case Cons(h, t) => 
+                    OurListSpecs.sliceAtIndex(l, heap, from, heap.size, h.addr)
+                    assert(addrFunc(heap)(h))
+                    OurListSpecs.sliceTail(l, heap, from, heap.size)
+                    rangeInvImpliesAddrInvRec(t, heap, from + 1)
+            }
+        }.ensuring(_ => l.forall(addrFunc(heap)))
 
-      updatePreservesInvariants(heap, addr, n, heap) */
+        OurListSpecs.sliceZeroSize(l)
+        rangeInvImpliesAddrInvRec(l, l, 0)
+    }.ensuring(_ => l.forall(addrFunc(l)))
 
 
     /* // invariant III-A: any traversal finishes at a root

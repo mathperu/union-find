@@ -126,8 +126,7 @@ object OurListSpecs {
 
     // Map lemmas
 
-    //TODO rename with actual name of property
-    def mapAppend[T, U](l: List[T], elem: T, f: T => U): Unit = {
+    def mapDistributesOverAppend[T, U](l: List[T], elem: T, f: T => U): Unit = {
         l match {
             case Nil() => ()
             case Cons(h, t) => mapAppend(t, elem, f)

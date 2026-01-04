@@ -135,7 +135,7 @@ object UnionFindList2 {
 
       // Invariant IV
       OurListSpecs.rangeAppend(0, heap.size)
-      OurListSpecs.mapAppend(heap, newNode, _.addr)
+      OurListSpecs.mapDistributesOverAppend(heap, newNode, _.addr)
 
       (UF(newHeap), newNode)
     }

@@ -215,7 +215,9 @@ object UnionFindList {
             addr
           }
         }
-      }.ensuring(y => nodeAtIsRoot(y) && isValidAddr(y) && nodeAt(addr).rank <= nodeAt(y).rank)
+      }.ensuring(y =>
+        nodeAtIsRoot(y) && isValidAddr(y) && nodeAt(addr).rank <= nodeAt(y).rank
+      )
 
       // Invoke invariants on Node[T]
       val f = nodeAt(addr)
@@ -226,7 +228,9 @@ object UnionFindList {
         trivial
       }
       findInner(addr)
-    }.ensuring(y => nodeAtIsRoot(y) && isValidAddr(y) && nodeAt(addr).rank <= nodeAt(y).rank)
+    }.ensuring(y =>
+      nodeAtIsRoot(y) && isValidAddr(y) && nodeAt(addr).rank <= nodeAt(y).rank
+    )
 
     def equiv(a1: BigInt, a2: BigInt): Boolean = {
       require(isValidAddr(a1))
@@ -374,7 +378,7 @@ object UnionFindList {
         decreases(l)
         l match {
           case Nil() => ()
-          case Cons(h, t) => 
+          case Cons(h, t) =>
             val rep = find(h.addr)
             assert(nodeAt(rep).rank >= h.rank)
             assert()
@@ -387,14 +391,14 @@ object UnionFindList {
       l match {
         case Nil() => ()
         case Cons(h, t) => h match {
-            case Child(addr, value, rank, parentAddr) => 
+            case Child(addr, value, rank, parentAddr) =>
               isValidAddr(parentAddr, l) && l(parentAddr).rank > rank
             case Root(addr, value, rank) => rank <= l.size
           }
           rankDecreasesInvImpliesBoundedInv(t)
       } */
     }.ensuring{_ => heap.forall(boundedFunc(l))}
- */
+     */
   }
 
 }

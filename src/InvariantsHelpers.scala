@@ -110,7 +110,7 @@ object InvariantsHelpers {
 
     addrInvAppendRec(l, l, n)
     OurListSpecs.forallAppend(l, n, addrFunc(l :+ n))
-  }.ensuring{_ => (l :+ n).forall(addrFunc(l :+ n)) }
+  }.ensuring { _ => (l :+ n).forall(addrFunc(l :+ n)) }
 
   // Invariant III implies invariant II
   def rangeInvImpliesAddrInv[T](l: List[Node[T]]): Unit = {
@@ -194,40 +194,39 @@ object InvariantsHelpers {
 
   // Invariant V: rank of a node is less than or equal to the size of the heap
   def boundedFunc[T] = (heap: List[Node[T]]) =>
-    (n: Node[T]) => n.rank <= heap.size
+    (n: Node[T]) => (n.rank <= heap.size)
 
-  // Invariant IV implies invariant V
-    def rankDecreasesInvImpliesBoundedInv[T](l: List[Node[T]]): Unit = {
-      require(l.forall(rankFunc(l)))
-      require(hasRoot(l))
+// Invariant IV implies invariant V
+  def rankDecreasesInvImpliesBoundedInv[T](l: List[Node[T]]): Unit = {
+    require(l.forall(rankFunc(l)))
+    require(hasRoot(l))
 
-      /* def rec(l: List[Node[T]], heap: List[Node[T]]): Unit = {
-        require(l.forall(rankFunc(heap)))
-        require(heap.forall(parentFunc(heap)))
-        decreases(l)
-        l match {
-          case Nil() => ()
-          case Cons(h, t) => 
-            val rep = find(h.addr)
-            assert(nodeAt(rep).rank >= h.rank)
-            assert()
-        }
-      }.ensuring{_ => l.forall(boundedFunc(heap))}
+    /* def rec(l: List[Node[T]], heap: List[Node[T]]): Unit = {
+require(l.forall(rankFunc(heap)))
+require(heap.forall(parentFunc(heap)))
+decreases(l)
+l match {
+    case Nil() => ()
+    case Cons(h, t) =>
+    val rep = find(h.addr)
+    assert(nodeAt(rep).rank >= h.rank)
+    assert()
+}
+}.ensuring{_ => l.forall(boundedFunc(heap))}
 
-      rec(heap, heap) */
+rec(heap, heap) */
 
-      /* decreases(l)
-      l match {
-        case Nil() => ()
-        case Cons(h, t) => h match {
-            case Child(addr, value, rank, parentAddr) => 
-              isValidAddr(parentAddr, l) && l(parentAddr).rank > rank
-            case Root(addr, value, rank) => rank <= l.size
-          }
-          rankDecreasesInvImpliesBoundedInv(t)
-      } */
-    }.ensuring{_ => true}//l.forall(boundedFunc(l))}
-  
+    /* decreases(l)
+l match {
+case Nil() => ()
+case Cons(h, t) => h match {
+    case Child(addr, value, rank, parentAddr) =>
+        isValidAddr(parentAddr, l) && l(parentAddr).rank > rank
+    case Root(addr, value, rank) => rank <= l.size
+    }
+    rankDecreasesInvImpliesBoundedInv(t)
+} */
+  }.ensuring { _ => true } // l.forall(boundedFunc(l))}
 
   // maybe other invariants?
   // domain is a list

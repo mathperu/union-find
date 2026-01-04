@@ -8,16 +8,23 @@ import stainless.annotation._
 import ourlistspecs.OurListSpecs
 import InvariantsHelpers._
 
-object UnionFindList2 {
+object UnionFindList {
 
   sealed trait Node[T] {
     val addr: BigInt
+    val rank: BigInt
     val value: T
+
+    require(addr >= 0)
+    require(rank >= 0)
   }
 
-  case class Child[T](addr: BigInt, value: T, parentAddr: BigInt)
+  case class Child[T](addr: BigInt, value: T, rank: BigInt, parentAddr: BigInt)
       extends Node[T]
   case class Root[T](addr: BigInt, value: T, rank: BigInt) extends Node[T]
+
+  // required to instantiate dist >= 0 proofs
+  def instantiateRank[T](n: Node[T]): Unit = {}.ensuring(n.rank >= 0)
 
   def isRoot[T](n: Node[T]): Boolean = {
     n match {
@@ -40,14 +47,25 @@ object UnionFindList2 {
     val addrFuncOnHeap = addrFunc(heap)
     require(heap.forall(addrFuncOnHeap))
 
-    // invariant III-A: any traversal finishes at a root
-    // require(heap.forall(finishAtRoot(_, heap)))
-
-    // invariant III-B: any traversal is bounded by the heap's size
-    // require(heap.forall(traverseBounded(_, heap)))
+    // Invariant III: rank of a node is less than or equal to its parent's rank
+    val rankFuncOnHeap = rankFunc(heap)
+    val rankInv = heap.forall(rankFuncOnHeap)
+    require(rankInv)
 
     // Invariant IV: addresses are correct
     require(addresses == List.range(0, size))
+
+    // Invariant V: rank of a node is bounded by the size of the heap it's in
+    //    TODO this is technically covered by distFunc, it might be better to derive this as a lemma
+    val boundedFuncOnHeap = boundedFunc(heap)
+    val boundedInv = heap.forall(boundedFuncOnHeap)
+    require(boundedInv)
+
+    // invariant XXX-A: any traversal finishes at a root
+    // require(heap.forall(finishAtRoot(_, heap)))
+
+    // invariant XXX-B: any traversal is bounded by the heap's size
+    // require(heap.forall(traverseBounded(_, heap)))
 
     def isValidAddr(addr: BigInt): Boolean =
       0 <= addr && addr < size
@@ -58,8 +76,8 @@ object UnionFindList2 {
 
     def getParentAddr(n: Node[T]): BigInt =
       n match {
-        case Child(addr, value, parentAddr) => parentAddr
-        case Root(addr, value, rank)        => addr
+        case Child(addr, value, _, parentAddr) => parentAddr
+        case Root(addr, value, rank)           => addr
       }
 
     def set(addr: BigInt, n: Node[T]): UF[T] =
@@ -87,8 +105,8 @@ object UnionFindList2 {
 
     def rankIs(n: Node[T], x: BigInt): Boolean = {
       n match {
-        case Child(addr, value, parentAddr) => false
-        case Root(addr, value, rank)        => rank == x
+        case Child(addr, value, rank, parentAddr) => rank == x
+        case Root(addr, value, rank)              => rank == x
       }
 
     }
@@ -110,29 +128,6 @@ object UnionFindList2 {
       assert(addrFunc(newHeap)(newNode))
       addrInvAppend(heap, newNode)
 
-      /* // invariant III-A: any traversal finishes at a root
-      assert(finishAtRoot(newNode, newHeap))
-      rootInvAppend(heap, newNode)
-      assert(newHeap.forall(finishAtRoot(_, newHeap))) // TO, maybe should define invariant III like I and II ?
-
-      // invariant III-B: any traversal is bounded by the heap's size
-      assert(traverseBounded(newNode, newHeap))
-      assert(newHeap.forall(traverseBounded(_, newHeap))) // TO */
-
-      // Proofs needed, for a new node t, where newHeap = oldHeap :+ N
-      //
-      // addrFunc(oldHeap)(n) => addrFunc(oldHeap :+ t)(n) for all n in old heap
-      // - in particular prove that addrFunc(oldHeap :+ t)(t) holds
-      //
-      // parentFunc(oldHeap)(n) => parentFunc(oldHeap :+ t)(n) for all n in old heap
-      // - in particular prove that parentFunc(oldHeap :+ t)(t) holds
-      //
-      // finishAtRoot(n, oldHeap) => finishAtRoot(n, oldHeap :+ n) for all n in old heap
-      // - trivial for stainless: finishAtRoot(t, oldHeap :+ t) holds
-      //
-      // traverseBounded(n, oldHeap) => traverseBounded(n, oldHeap +: n) for all n in old heap
-      // - trivial for stainless: traverseBounded(t, oldHeap :+ t) holds
-
       // Invariant IV
       OurListSpecs.rangeAppend(0, heap.size)
       OurListSpecs.mapAppend(heap, newNode, _.addr)
@@ -143,20 +138,53 @@ object UnionFindList2 {
     // no path compression
     // provide address and finds parent's address
 
-    def findRec(addr: BigInt, fuel: BigInt): BigInt = {
-      require(fuel >= 0)
-      decreases(fuel)
-      if fuel == 0 then -1
-      else if isValidAddr(addr) then
-        nodeAt(addr) match {
-          case Child(addr, value, parentAddr) => findRec(parentAddr, fuel - 1)
-          case Root(ad, value, rank)          => addr
-        }
-      else addr
-    }
-
     def find(addr: BigInt): BigInt = {
-      findRec(addr, size)
+      // TODO try to replace parameter with just nodeAt(addr), might make invariants automatic
+      def findInner(addr: BigInt) = {
+
+      }
+      require(isValidAddr(addr))
+      val f = nodeAt(addr)
+      require(f.rank >= 0)
+      require(f.rank <= heap.size)
+      decreases(size - f.rank)
+
+      nodeAt(addr) match {
+        case Child(addr, value, dist, parentAddr) => {
+          // prove: isValidAddr(parentAddr) using parentInv
+          isValidAddr(parentAddr) because {
+            heap.contains(f)
+            ListSpecs.forallContained(heap, parentFuncOnHeap, f)
+            parentIsInHeap(f, heap)
+          }
+
+          check(isValidAddr(parentAddr))
+          val parent = nodeAt(parentAddr)
+          check(rankInv)
+
+          (parent.rank > dist) because {
+            heap.contains(f)
+            ListSpecs.forallContained(heap, rankFuncOnHeap, f)
+            parentDecreases(f, heap)
+          }
+
+          instantiateRank(parent)
+          check(parent.rank >= 0)
+          // parent.rank <= heap.size should be trivial
+          (parent.rank <= size) because {
+            heap.contains(parent)
+            ListSpecs.forallContained(heap, boundedFuncOnHeap, parent)
+            trivial
+          }
+          check(parent.rank <= size)
+
+          find(parentAddr)
+        }
+        case r @ Root(addr, value, rank) => {
+          instantiateRank(r)
+          addr
+        }
+      }
     }
 
     def equiv(a1: BigInt, a2: BigInt): Boolean = {
@@ -175,15 +203,15 @@ object UnionFindList2 {
         (nodeAt(a1), nodeAt(a2)) match {
           case (Root(ad1, v1, r1), Root(ad2, v2, r2)) =>
             if r1 < r2 then
-              val newNode1 = Child(a1, v1, a2)
+              val newNode1 = Child(a1, v1, r1, a2)
               val newUF = this.set(a1, newNode1)
               (newUF, a2)
             else if r1 > r2 then
-              val newNode2 = Child(a2, v2, a1)
+              val newNode2 = Child(a2, v2, r2, a1)
               val newUF = this.set(a2, newNode2)
               (newUF, a1)
             else
-              val newNode1 = Child(a1, v1, a2)
+              val newNode1 = Child(a1, v1, r1, a2)
               val newUF1 = this.set(a1, newNode1)
               val newNode2 = Root(a2, v2, r2 + 1)
               val newUF2 = newUF1.set(a2, newNode2)
@@ -209,32 +237,49 @@ object UnionFindList2 {
       link(find(a1), find(a2))
     }
 
+    // TODO bye bye findRec
+    def findRec(addr: BigInt, fuel: BigInt): BigInt = {
+      require(fuel >= 0)
+      decreases(fuel)
+      if fuel == 0 then -1
+      else if isValidAddr(addr) then
+        nodeAt(addr) match {
+          case Child(addr, value, _, parentAddr) =>
+            findRec(parentAddr, fuel - 1)
+          case Root(ad, value, rank) => addr
+        }
+      else addr
+    }
+
+    // TODO bye bye findRec
     def findReturnsRoot(addr: BigInt): Unit = {
-      def findReturnsRootRec(addr: BigInt, fuel: BigInt): Unit = {
-        require(fuel >= 0)
-        decreases(fuel)
+      require(isValidAddr(addr))
+      assert(nodeAt(addr).rank)
+      // def findReturnsRootRec(addr: BigInt): Unit = {
+      //   require(fuel >= 0)
+      //   decreases(fuel)
 
-        if fuel == 0 then ()
-        else if isValidAddr(addr) then
-          nodeAt(addr) match {
-            case nc @ Child(addr, value, parentAddr) =>
-              ListSpecs.forallContained(heap, parentFuncOnHeap, nc)
+      //   if fuel == 0 then ()
+      //   else if isValidAddr(addr) then
+      //     nodeAt(addr) match {
+      //       case nc @ Child(addr, value, _, parentAddr) =>
+      //         ListSpecs.forallContained(heap, parentFuncOnHeap, nc)
 
-              findReturnsRootRec(parentAddr, fuel - 1)
+      //         findReturnsRootRec(parentAddr, fuel - 1)
 
-            case Root(ad, value, rank) =>
-              ()
-          }
-        else ()
-      }.ensuring(_ =>
-        !isValidAddr(findRec(addr, fuel)) ||
-          nodeAtIsRoot(findRec(addr, fuel))
-      )
+      //       case Root(ad, value, rank) =>
+      //         ()
+      //     }
+      //   else ()
+      // }.ensuring(_ =>
+      //   nodeAtIsRoot(find(addr))
+      // )
 
-      findReturnsRootRec(addr, size)
-    }.ensuring(_ => !isValidAddr(find(addr)) || nodeAtIsRoot(find(addr)))
+      // findReturnsRootRec(addr, size)
+    }.ensuring(_ => nodeAtIsRoot(find(addr)))
 
     // invalid in stainless: measure missing
+    // TODO bye bye findRec
     def findReturnsValidAddr(addr: BigInt): Unit = {
       def findReturnsValidAddrRec(addr: BigInt, fuel: BigInt): Unit = {
         require(fuel >= 0)
@@ -243,7 +288,7 @@ object UnionFindList2 {
         if fuel == 0 then ()
         else if isValidAddr(addr) then
           nodeAt(addr) match {
-            case nc @ Child(_, _, parentAddr) =>
+            case nc @ Child(_, _, _, parentAddr) =>
               assert(heap.contains(nc))
 
               ListSpecs.forallContained(heap, parentFuncOnHeap, nc)

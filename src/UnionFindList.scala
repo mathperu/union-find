@@ -33,6 +33,17 @@ object UnionFindList {
     }
   }
 
+  def hasRoot[T](heap: List[Node[T]]): Boolean = {
+    decreases(heap)
+
+    heap match
+      case Cons(h, t) =>
+        h match
+          case Child(_, _, _, _) => false || hasRoot(t)
+          case Root(_, _, _)     => true
+      case Nil() => false
+  }
+
   case class UF[T](heap: List[Node[T]]) {
 
     val addresses: List[BigInt] = heap.map(n => n.addr)
@@ -164,7 +175,7 @@ object UnionFindList {
             (parent.rank > dist) because {
               heap.contains(f)
               ListSpecs.forallContained(heap, rankFuncOnHeap, f)
-              parentDecreases(f, heap)
+              rankDecreasesAlongEdges(f, heap)
             }
 
             instantiateRank(parent)

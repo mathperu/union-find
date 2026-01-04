@@ -2,9 +2,8 @@ package ourlistspecs
 
 import stainless.lang._
 import stainless.proof._
-import stainless.collection.{List, ListSpecs, Nil}
+import stainless.collection.{List, ListSpecs, Nil, Cons}
 import stainless.annotation._
-import stainless.collection.Cons
 
 object OurListSpecs {
 

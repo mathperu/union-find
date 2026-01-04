@@ -93,11 +93,7 @@ object InvariantsHelpers {
         (0 <= e.addr && e.addr < (l :+ n).size) && (l :+ n)(e.addr) == e
       }
     }.holds
-    def addrInvAppendRec(
-        l: List[Node[T]],
-        heap: List[Node[T]],
-        n: Node[T]
-    ): Unit = {
+    def addrInvAppendRec(l: List[Node[T]], heap: List[Node[T]], n: Node[T]): Unit = {
       require(l.forall(addrFunc(heap)))
       l match {
         case Nil()      => ()
@@ -116,11 +112,7 @@ object InvariantsHelpers {
   def rangeInvImpliesAddrInv[T](l: List[Node[T]]): Unit = {
     require(l.map(_.addr) == List.range(0, l.size))
 
-    def rangeInvImpliesAddrInvRec(
-        l: List[Node[T]],
-        heap: List[Node[T]],
-        from: BigInt
-    ): Unit = {
+    def rangeInvImpliesAddrInvRec(l: List[Node[T]], heap: List[Node[T]], from: BigInt): Unit = {
       require(heap.map(_.addr) == List.range(0, heap.size))
       require(l.map(_.addr) == List.range(from, from + l.size))
       require(0 <= from)
@@ -150,7 +142,7 @@ object InvariantsHelpers {
     *   - any root must have rank less than or equal to heap size
     */
   def rankDecreasesAlongEdges[T](n: Node[T], heap: List[Node[T]]): Boolean = {
-    !isValidAddr(n.addr, heap) || (n match {
+    isValidAddr(n.addr, heap) && (n match {
       case Child(addr, value, rank, parentAddr) => 
         isValidAddr(parentAddr, heap) && heap(parentAddr).rank > n.rank
       case Root(addr, value, rank) => rank <= heap.size
@@ -165,7 +157,10 @@ object InvariantsHelpers {
     (n: Node[T]) => n.rank <= heap.size
 
   // Invariant IV implies invariant V
-  
+  def rankDecreasesInvImpliesBoundedInv[T](l: List[Node[T]]): Unit = {
+    require(l.forall(rankFunc(l)))
+    require(hasRoot(l))
+  }.ensuring{_ => l.forall(boundedFunc(l))}
 
   // maybe other invariants?
   // domain is a list

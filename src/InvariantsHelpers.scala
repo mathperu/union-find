@@ -8,6 +8,8 @@ import stainless.collection.Cons
 
 import ourlistspecs.OurListSpecs
 import UnionFindList._
+import ourlistspecs.OurListSpecs.forallAppend
+import scala.annotation.internal.Child
 
 object InvariantsHelpers {
 
@@ -162,32 +164,66 @@ object InvariantsHelpers {
   def rankFunc[T] = (heap: List[Node[T]]) =>
     (n: Node[T]) => rankDecreasesAlongEdges[T](n, heap)
 
-  // lemma: invariant IV is preserved by appending an element to the heap
+  // lemma: invariant IV is preserved by appending a root to the heap
   def rankInvAppend[T](l: List[Node[T]], n: Node[T]): Unit = {
     require(l.forall(rankFunc(l)) && rankFunc(l :+ n)(n))
+    require(isRoot(n))
 
-    def rankInvAppendElem(l: List[Node[T]], n: Node[T], e: Node[T]): Boolean = {
-      require(rankFunc(l)(e))
-      rankFunc((l :+ n))(e) because {
-        assert(0 <= e.rank && e.rank <= l.size)
-        OurListSpecs.appendPreservesIndices(l, n, e.rank)
-        assert(l(e.addr) == e)
+    // def rankInvAppendElem(l: List[Node[T]], n: Node[T], e: Node[T]): Boolean = {
+    //   require(rankFunc(l)(e))
+    //   rankFunc((l :+ n))(e) because {
+    //     assert(0 <= e.rank && e.rank <= l.size)
+    //     OurListSpecs.appendPreservesIndices(l, n, e.rank)
+    //     assert(l(e.addr) == e)
+    //     (0 <= e.rank && e.rank < (l :+ n).size) && (l :+ n)(e.rank) == e
+    //   }
+    // }.holds
 
-        (0 <= e.rank && e.rank < (l :+ n).size) && (l :+ n)(e.rank) == e
-      }
-    }.holds
+    // TODO might have to pass the new heap's size !
     def rankInvAppendRec(
         l: List[Node[T]],
         heap: List[Node[T]],
         n: Node[T]
     ): Unit = {
       require(l.forall(rankFunc(heap)))
+      require(isRoot(n))
+      // require l to be a subset of heap
+      require(l.content.subsetOf(heap.content))
       l match {
         case Nil()      => ()
-        case Cons(h, t) =>
+        case Cons(h, t) => {
           assert(rankFunc(heap)(h))
-          assert(rankInvAppendElem(heap, n, h))
-          rankInvAppendRec(t, heap, n)
+          // rankInvAppendRec(t, heap, n)
+          h match {
+            case Child(addr, value, rank, parentAddr) =>
+              assert(isValidAddr(parentAddr, heap))
+              assert(heap(parentAddr).rank > rank)
+              assert(isValidAddr(parentAddr, heap :+ n))
+
+              // TODO need a way to show that the child doesn't get any new parents
+              // fails because stainless thinks new root can be parent
+              // check(parentAddr != n.addr)
+              check(heap.contains(h))
+              ListSpecs.forallContained(heap, rankFunc(heap), h)
+              check(heap(parentAddr) != n)
+              check(
+                (heap :+ n)(parentAddr) == heap(parentAddr)
+              ) // this is what we need to prove
+              assert((heap :+ n)(parentAddr).rank > rank)
+
+              // we want to get to this:
+              assert(rankFunc(heap :+ n)(h))
+              rankInvAppendRec(t, heap, n)
+
+            case Root(addr, value, rank) =>
+              assert(rank <= heap.size)
+              assert(rank <= (heap :+ n).size)
+
+              // we want to get to this:
+              assert(rankFunc(heap :+ n)(h))
+              rankInvAppendRec(t, heap, n)
+          }
+        }
       }
     }.ensuring(l.forall(rankFunc(heap :+ n)))
 

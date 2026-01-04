@@ -158,6 +158,7 @@ object UnionFindList {
       // Invariant V
       assert(hasRoot(newHeap))
       rankDecreasesInvImpliesBoundedInv(newHeap)
+      assert(newHeap.forall(boundedFunc(newHeap)))
 
       (UF(newHeap), newNode)
     }

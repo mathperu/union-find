@@ -139,9 +139,13 @@ object UnionFindList {
       assert(addrFunc(newHeap)(newNode))
       addrInvAppend(heap, newNode)
 
-      // Invariant IV
+      // Invariant III: addresses are correct
       OurListSpecs.rangeAppend(0, heap.size)
       OurListSpecs.mapAppend(heap, newNode, _.addr)
+
+      // Invariant IV: rank of a node is less than or equal to its parent's rank
+      assert(rankFunc(newHeap)(newNode))
+      rankInvAppend(heap, newNode)
 
       (UF(newHeap), newNode)
     }
@@ -225,6 +229,12 @@ object UnionFindList {
           a2
         )
       )
+
+      val n1 = nodeAt(a1)
+      val n2 = nodeAt(a2)
+
+      instantiateRank(n1)
+      instantiateRank(n2)
 
       if a1 == a2 then (this, a1)
       else

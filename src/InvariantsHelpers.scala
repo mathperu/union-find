@@ -93,7 +93,11 @@ object InvariantsHelpers {
         (0 <= e.addr && e.addr < (l :+ n).size) && (l :+ n)(e.addr) == e
       }
     }.holds
-    def addrInvAppendRec(l: List[Node[T]], heap: List[Node[T]], n: Node[T]): Unit = {
+    def addrInvAppendRec(
+        l: List[Node[T]],
+        heap: List[Node[T]],
+        n: Node[T]
+    ): Unit = {
       require(l.forall(addrFunc(heap)))
       l match {
         case Nil()      => ()
@@ -112,7 +116,11 @@ object InvariantsHelpers {
   def rangeInvImpliesAddrInv[T](l: List[Node[T]]): Unit = {
     require(l.map(_.addr) == List.range(0, l.size))
 
-    def rangeInvImpliesAddrInvRec(l: List[Node[T]], heap: List[Node[T]], from: BigInt): Unit = {
+    def rangeInvImpliesAddrInvRec(
+        l: List[Node[T]],
+        heap: List[Node[T]],
+        from: BigInt
+    ): Unit = {
       require(heap.map(_.addr) == List.range(0, heap.size))
       require(l.map(_.addr) == List.range(from, from + l.size))
       require(0 <= from)
@@ -143,11 +151,43 @@ object InvariantsHelpers {
     */
   def rankDecreasesAlongEdges[T](n: Node[T], heap: List[Node[T]]): Boolean = {
     isValidAddr(n.addr, heap) && (n match {
-      case Child(addr, value, rank, parentAddr) => 
+      case Child(addr, value, rank, parentAddr) =>
         isValidAddr(parentAddr, heap) && heap(parentAddr).rank > n.rank
       case Root(addr, value, rank) => rank <= heap.size
     })
   }
+
+  def rankInvAppend[T](l: List[Node[T]], n: Node[T]): Unit = {
+    require(l.forall(rankFunc(l)) && rankFunc(l :+ n)(n))
+
+    def rankInvAppendElem(l: List[Node[T]], n: Node[T], e: Node[T]): Boolean = {
+      require(rankFunc(l)(e))
+      rankFunc((l :+ n))(e) because {
+        assert(0 <= e.rank && e.rank <= l.size)
+        OurListSpecs.appendPreservesIndices(l, n, e.rank)
+        assert(l(e.addr) == e)
+
+        (0 <= e.rank && e.rank < (l :+ n).size) && (l :+ n)(e.rank) == e
+      }
+    }.holds
+    def rankInvAppendRec(
+        l: List[Node[T]],
+        heap: List[Node[T]],
+        n: Node[T]
+    ): Unit = {
+      require(l.forall(rankFunc(heap)))
+      l match {
+        case Nil()      => ()
+        case Cons(h, t) =>
+          assert(rankFunc(heap)(h))
+          assert(rankInvAppendElem(heap, n, h))
+          rankInvAppendRec(t, heap, n)
+      }
+    }.ensuring(l.forall(rankFunc(heap :+ n)))
+
+    rankInvAppendRec(l, l, n)
+    OurListSpecs.forallAppend(l, n, rankFunc(l :+ n))
+  }.ensuring { _ => (l :+ n).forall(rankFunc(l :+ n)) }
 
   def rankFunc[T] = (heap: List[Node[T]]) =>
     (n: Node[T]) => rankDecreasesAlongEdges[T](n, heap)
@@ -160,7 +200,7 @@ object InvariantsHelpers {
   def rankDecreasesInvImpliesBoundedInv[T](l: List[Node[T]]): Unit = {
     require(l.forall(rankFunc(l)))
     require(hasRoot(l))
-  }.ensuring{_ => l.forall(boundedFunc(l))}
+  }.ensuring { _ => l.forall(boundedFunc(l)) }
 
   // maybe other invariants?
   // domain is a list

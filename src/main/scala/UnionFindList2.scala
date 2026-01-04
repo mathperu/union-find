@@ -270,6 +270,21 @@ object UnionFindList2 {
 
     def makeAddsValueToDomain(value: T): Unit = {
       require(!domain.contains(value))
+      val (newUF, newNode) = make(value)
+
+      // Lemma: Prove that mapping over an appended list distributes the operation
+      def mapSnoc(l: List[Node[T]], e: Node[T]): Unit = {
+        decreases(l)
+        l match {
+          case Nil() => ()
+          case Cons(h, t) => mapSnoc(t, e)
+        }
+      }.ensuring(_ => (l :+ e).map(_.value) == l.map(_.value) :+ e.value)
+
+      mapSnoc(heap, newNode)
+      
+      assert(newUF.domain == domain :+ value)
+      assert(newUF.domain.contains(value))
     }.ensuring(_ => make(value)._1.domain.contains(value))
 
     def makeReturnsASingletonSet(value: T): Unit = {

@@ -99,10 +99,17 @@ object UnionFindList {
 
       val newHeap = heap.updated(addr, n)
 
-      // invariant IV
+      // invariant III
       OurListSpecs.mapAtIndex(heap, addr, _.addr)
       OurListSpecs.rangeAtIndexPlusStartIsIndexPlusStart(0, heap.size, addr)
       OurListSpecs.mapUpdate(heap, addr, n, _.addr)
+
+      // Invariant IV
+      assert(newHeap.forall(rankFunc(newHeap)))
+
+      // Invariant V
+      assert(hasRoot(newHeap))
+      rankDecreasesInvImpliesBoundedInv(newHeap)
 
       rangeInvImpliesAddrInv(newHeap)
       parentInvUpdate(heap, addr, n)
@@ -139,9 +146,16 @@ object UnionFindList {
       assert(addrFunc(newHeap)(newNode))
       addrInvAppend(heap, newNode)
 
-      // Invariant IV
+      // Invariant III
       OurListSpecs.rangeAppend(0, heap.size)
       OurListSpecs.mapAppend(heap, newNode, _.addr)
+
+      // Invariant IV
+      assert(newHeap.forall(rankFunc(newHeap)))
+
+      // Invariant V
+      assert(hasRoot(newHeap))
+      rankDecreasesInvImpliesBoundedInv(newHeap)
 
       (UF(newHeap), newNode)
     }
@@ -200,7 +214,7 @@ object UnionFindList {
             addr
           }
         }
-      }.ensuring(y => nodeAtIsRoot(y) && isValidAddr(y))
+      }.ensuring(y => nodeAtIsRoot(y) && isValidAddr(y) && nodeAt(addr).rank <= nodeAt(y).rank)
 
       // Invoke invariants on Node[T]
       val f = nodeAt(addr)
@@ -211,7 +225,7 @@ object UnionFindList {
         trivial
       }
       findInner(addr)
-    }.ensuring(y => nodeAtIsRoot(y) && isValidAddr(y))
+    }.ensuring(y => nodeAtIsRoot(y) && isValidAddr(y) && nodeAt(addr).rank <= nodeAt(y).rank)
 
     def equiv(a1: BigInt, a2: BigInt): Boolean = {
       require(isValidAddr(a1))
@@ -342,6 +356,38 @@ object UnionFindList {
         && ((equiv(a1, b) || equiv(a2, b)) || find(b) != union(a1, a2)._2)
     )
 
+    /* // Invariant IV implies invariant V
+    def rankDecreasesInvImpliesBoundedInv: Unit = {
+      //require(l.forall(rankFunc(l)))
+      //require(hasRoot(l))
+
+      def rec(l: List[Node[T]], heap: List[Node[T]]): Unit = {
+        require(l.forall(rankFunc(heap)))
+        require(heap.forall(parentFunc(heap)))
+        decreases(l)
+        l match {
+          case Nil() => ()
+          case Cons(h, t) => 
+            val rep = find(h.addr)
+            assert(nodeAt(rep).rank >= h.rank)
+            assert()
+        }
+      }.ensuring{_ => l.forall(boundedFunc(heap))}
+
+      rec(heap, heap)
+
+      /* decreases(l)
+      l match {
+        case Nil() => ()
+        case Cons(h, t) => h match {
+            case Child(addr, value, rank, parentAddr) => 
+              isValidAddr(parentAddr, l) && l(parentAddr).rank > rank
+            case Root(addr, value, rank) => rank <= l.size
+          }
+          rankDecreasesInvImpliesBoundedInv(t)
+      } */
+    }.ensuring{_ => heap.forall(boundedFunc(l))}
+ */
   }
 
 }

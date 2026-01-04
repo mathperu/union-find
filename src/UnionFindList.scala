@@ -64,13 +64,13 @@ object UnionFindList {
     // Invariant IV: rank of a node is less than or equal to its parent's rank
     val rankFuncOnHeap = rankFunc(heap)
     val rankInv = heap.forall(rankFuncOnHeap)
-    require(rankInv)
+    require(heap.forall(rankFuncOnHeap))
 
     // Invariant V: rank of a node is bounded by the size of the heap it's in
     //    TODO this is technically covered by distFunc, it might be better to derive this as a lemma
     val boundedFuncOnHeap = boundedFunc(heap)
     val boundedInv = heap.forall(boundedFuncOnHeap)
-    require(boundedInv)
+    require(heap.forall(boundedFuncOnHeap))
 
     // invariant XXX-A: any traversal finishes at a root
     // require(heap.forall(finishAtRoot(_, heap)))
@@ -153,6 +153,7 @@ object UnionFindList {
       // Invariant IV: rank of a node is less than or equal to its parent's rank
       assert(rankFunc(newHeap)(newNode))
       assert(newHeap.forall(rankFunc(newHeap)))
+      rankInvAppend(heap, newNode)
 
       // Invariant V
       assert(hasRoot(newHeap))

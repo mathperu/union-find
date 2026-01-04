@@ -137,57 +137,74 @@ object UnionFindList {
 
     // no path compression
     // provide address and finds parent's address
-
     def find(addr: BigInt): BigInt = {
-      // TODO try to replace parameter with just nodeAt(addr), might make invariants automatic
-      def findInner(addr: BigInt) = {
-
-      }
       require(isValidAddr(addr))
+
+      // preconds for nodeAt(addr).rank enable proof for non-negative measure
+      def findInner(addr: BigInt): BigInt = {
+        require(isValidAddr(addr))
+        val f = nodeAt(addr)
+        require(f.rank >= 0)
+        require(f.rank <= heap.size)
+        decreases(heap.size - f.rank)
+
+        nodeAt(addr) match {
+          case Child(addr, value, dist, parentAddr) => {
+            // prove: isValidAddr(parentAddr) using parentInv
+            isValidAddr(parentAddr) because {
+              heap.contains(f)
+              ListSpecs.forallContained(heap, parentFuncOnHeap, f)
+              parentIsInHeap(f, heap)
+            }
+
+            check(isValidAddr(parentAddr))
+            val parent = nodeAt(parentAddr)
+            check(rankInv)
+
+            (parent.rank > dist) because {
+              heap.contains(f)
+              ListSpecs.forallContained(heap, rankFuncOnHeap, f)
+              parentDecreases(f, heap)
+            }
+
+            instantiateRank(parent)
+            check(parent.rank >= 0)
+            (parent.rank <= size) because {
+              heap.contains(parent)
+              ListSpecs.forallContained(heap, boundedFuncOnHeap, parent)
+              trivial
+            }
+            check(parent.rank <= size)
+
+            findInner(parentAddr)
+          }
+          case r @ Root(addr, value, rank) => {
+            instantiateRank(r)
+            isValidAddr(addr) because {
+              heap.contains(r)
+              ListSpecs.forallContained(heap, addrFuncOnHeap, r)
+              addrAndHeapMatch(r, heap)
+              trivial
+            }
+            addr
+          }
+        }
+      }.ensuring(y => nodeAtIsRoot(y) && isValidAddr(y))
+
+      // Invoke invariants on Node[T]
       val f = nodeAt(addr)
-      require(f.rank >= 0)
-      require(f.rank <= heap.size)
-      decreases(size - f.rank)
-
-      nodeAt(addr) match {
-        case Child(addr, value, dist, parentAddr) => {
-          // prove: isValidAddr(parentAddr) using parentInv
-          isValidAddr(parentAddr) because {
-            heap.contains(f)
-            ListSpecs.forallContained(heap, parentFuncOnHeap, f)
-            parentIsInHeap(f, heap)
-          }
-
-          check(isValidAddr(parentAddr))
-          val parent = nodeAt(parentAddr)
-          check(rankInv)
-
-          (parent.rank > dist) because {
-            heap.contains(f)
-            ListSpecs.forallContained(heap, rankFuncOnHeap, f)
-            parentDecreases(f, heap)
-          }
-
-          instantiateRank(parent)
-          check(parent.rank >= 0)
-          // parent.rank <= heap.size should be trivial
-          (parent.rank <= size) because {
-            heap.contains(parent)
-            ListSpecs.forallContained(heap, boundedFuncOnHeap, parent)
-            trivial
-          }
-          check(parent.rank <= size)
-
-          find(parentAddr)
-        }
-        case r @ Root(addr, value, rank) => {
-          instantiateRank(r)
-          addr
-        }
+      (f.rank >= 0) because { instantiateRank(f); trivial }
+      (f.rank <= size) because {
+        heap.contains(f)
+        ListSpecs.forallContained(heap, boundedFuncOnHeap, f)
+        trivial
       }
-    }
+      findInner(addr)
+    }.ensuring(y => nodeAtIsRoot(y) && isValidAddr(y))
 
     def equiv(a1: BigInt, a2: BigInt): Boolean = {
+      require(isValidAddr(a1))
+      require(isValidAddr(a2))
       find(a1) == find(a2)
     }
 
@@ -227,11 +244,11 @@ object UnionFindList {
       require(isValidAddr(a1) && isValidAddr(a2))
       val r1 = find(a1)
       val r2 = find(a2)
-      findReturnsRoot(a1)
-      findReturnsRoot(a2)
+      // findReturnsRoot(a1) provided by find
+      // findReturnsRoot(a2)
       assert(nodeAtIsRoot(r1) && nodeAtIsRoot(r2))
-      findReturnsValidAddr(a1)
-      findReturnsValidAddr(a2)
+      // findReturnsValidAddr(a1) provided by find
+      // findReturnsValidAddr(a2)
       assert(isValidAddr(r1) && isValidAddr(r2))
 
       link(find(a1), find(a2))
@@ -251,66 +268,15 @@ object UnionFindList {
       else addr
     }
 
-    // TODO bye bye findRec
     def findReturnsRoot(addr: BigInt): Unit = {
       require(isValidAddr(addr))
-      assert(nodeAt(addr).rank)
-      // def findReturnsRootRec(addr: BigInt): Unit = {
-      //   require(fuel >= 0)
-      //   decreases(fuel)
-
-      //   if fuel == 0 then ()
-      //   else if isValidAddr(addr) then
-      //     nodeAt(addr) match {
-      //       case nc @ Child(addr, value, _, parentAddr) =>
-      //         ListSpecs.forallContained(heap, parentFuncOnHeap, nc)
-
-      //         findReturnsRootRec(parentAddr, fuel - 1)
-
-      //       case Root(ad, value, rank) =>
-      //         ()
-      //     }
-      //   else ()
-      // }.ensuring(_ =>
-      //   nodeAtIsRoot(find(addr))
-      // )
-
-      // findReturnsRootRec(addr, size)
-    }.ensuring(_ => nodeAtIsRoot(find(addr)))
-
-    // invalid in stainless: measure missing
-    // TODO bye bye findRec
+    }.ensuring(
+      nodeAtIsRoot(find(addr))
+    )
     def findReturnsValidAddr(addr: BigInt): Unit = {
-      def findReturnsValidAddrRec(addr: BigInt, fuel: BigInt): Unit = {
-        require(fuel >= 0)
-        decreases(fuel)
-
-        if fuel == 0 then ()
-        else if isValidAddr(addr) then
-          nodeAt(addr) match {
-            case nc @ Child(_, _, _, parentAddr) =>
-              assert(heap.contains(nc))
-
-              ListSpecs.forallContained(heap, parentFuncOnHeap, nc)
-
-              assert(parentIsInHeap(nc, heap))
-
-              assert(isValidAddr(parentAddr))
-
-              findReturnsValidAddrRec(parentAddr, fuel - 1)
-
-            case Root(_, _, _) =>
-              ()
-          }
-        else ()
-      }.ensuring(_ =>
-        findRec(addr, fuel) == -1 ||
-          (!isValidAddr(addr) || isValidAddr(findRec(addr, fuel)))
-      )
-
-      findReturnsValidAddrRec(addr, size)
-    }.ensuring(_ =>
-      find(addr) == -1 || (!isValidAddr(addr) || isValidAddr(find(addr)))
+      require(isValidAddr(addr))
+    }.ensuring(
+      isValidAddr(find(addr))
     )
 
     def makeAddsValueToDomain(value: T): Unit = {
@@ -357,7 +323,9 @@ object UnionFindList {
     )
 
     def unionMergedTheSets(a1: BigInt, a2: BigInt, b: BigInt): Unit = {
-      require(isValidAddr(a1) && isValidAddr(a2))
+      require(isValidAddr(a1))
+      require(isValidAddr(a2))
+      require(isValidAddr(b))
     }.ensuring(_ =>
       (!(equiv(a1, b) || equiv(a2, b)) || find(b) == union(a1, a2)._2)
         && ((equiv(a1, b) || equiv(a2, b)) || find(b) != union(a1, a2)._2)

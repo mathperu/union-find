@@ -48,6 +48,24 @@ object OurListSpecs {
     }
   }.ensuring { _ => (l :+ n)(i) == l(i) }
 
+  def appendFilterSizeDecreases[T](l: List[T], n: T, p: T => Boolean): Unit = {
+    require(p(n))
+
+    l match {
+      case Nil()      => ()
+      case Cons(h, t) => appendFilterSizeDecreases(t, n, p)
+    }
+  }.ensuring { _ => (l :+ n).filter(p).size == l.filter(p).size + 1 }
+
+  def appendFilterSizePreserved[T](l: List[T], n: T, p: T => Boolean): Unit = {
+    require(!p(n))
+
+    l match {
+      case Nil()      => ()
+      case Cons(h, t) => appendFilterSizePreserved(t, n, p)
+    }
+  }.ensuring { _ => (l :+ n).filter(p).size == l.filter(p).size }
+
   // Update lemmas
 
   def forallUpdate[T](
@@ -230,11 +248,10 @@ object OurListSpecs {
 
   // Map lemmas
 
-  // TODO rename with actual name of property
-  def mapAppend[T, U](l: List[T], elem: T, f: T => U): Unit = {
+  def mapDistributesOverAppend[T, U](l: List[T], elem: T, f: T => U): Unit = {
     l match {
       case Nil()      => ()
-      case Cons(h, t) => mapAppend(t, elem, f)
+      case Cons(h, t) => mapDistributesOverAppend(t, elem, f)
     }
   }.ensuring(_ => l.map(f) :+ f(elem) == (l :+ elem).map(f))
 

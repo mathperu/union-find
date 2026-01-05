@@ -296,7 +296,7 @@ object UnionFindList {
       // findReturnsValidAddr(a2)
       assert(isValidAddr(r1) && isValidAddr(r2))
 
-      link(find(a1), find(a2))
+      link(r1, r2)
     }
 
     // TODO bye bye findRec

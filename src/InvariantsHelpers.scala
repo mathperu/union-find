@@ -10,6 +10,7 @@ import ourlistspecs.OurListSpecs
 import UnionFindList._
 import ourlistspecs.OurListSpecs.forallAppend
 import scala.annotation.internal.Child
+import ourlistspecs.OurListSpecs.appendPreservesIndices
 
 object InvariantsHelpers {
 
@@ -164,22 +165,12 @@ object InvariantsHelpers {
   def rankFunc[T] = (heap: List[Node[T]]) =>
     (n: Node[T]) => rankDecreasesAlongEdges[T](n, heap)
 
-  // lemma: invariant IV is preserved by appending a root to the heap
+  // lemma: invariant IV is preserved by appending a new root to the heap
   def rankInvAppend[T](l: List[Node[T]], n: Node[T]): Unit = {
     require(l.forall(rankFunc(l)) && rankFunc(l :+ n)(n))
     require(isRoot(n))
+    require(!l.contains(n))
 
-    // def rankInvAppendElem(l: List[Node[T]], n: Node[T], e: Node[T]): Boolean = {
-    //   require(rankFunc(l)(e))
-    //   rankFunc((l :+ n))(e) because {
-    //     assert(0 <= e.rank && e.rank <= l.size)
-    //     OurListSpecs.appendPreservesIndices(l, n, e.rank)
-    //     assert(l(e.addr) == e)
-    //     (0 <= e.rank && e.rank < (l :+ n).size) && (l :+ n)(e.rank) == e
-    //   }
-    // }.holds
-
-    // TODO might have to pass the new heap's size !
     def rankInvAppendRec(
         l: List[Node[T]],
         heap: List[Node[T]],
@@ -188,6 +179,8 @@ object InvariantsHelpers {
       require(heap.forall(rankFunc(heap)))
       require(l.forall(rankFunc(heap)))
       require(isRoot(n))
+      require(!heap.contains(n))
+
       // require l to be a subset of heap
       require(l.content.subsetOf(heap.content))
       l match {
@@ -201,16 +194,16 @@ object InvariantsHelpers {
               assert(heap(parentAddr).rank > rank)
               assert(isValidAddr(parentAddr, heap :+ n))
 
-              // TODO need a way to show that the child doesn't get any new parents
-              // fails because stainless thinks new root can be parent
-              // check(parentAddr != n.addr)
+              // show that the child doesn't get any new parents
               check(heap.contains(h))
               check(heap.forall(rankFunc(heap)))
               ListSpecs.forallContained(heap, rankFunc(heap), h)
+              check(heap(parentAddr).rank > rank)
               check(heap(parentAddr) != n)
+              OurListSpecs.appendPreservesIndices(heap, n, parentAddr)
               check(
                 (heap :+ n)(parentAddr) == heap(parentAddr)
-              ) // this is what we need to prove
+              ) // <- this is what we need to prove
               assert((heap :+ n)(parentAddr).rank > rank)
 
               // we want to get to this:

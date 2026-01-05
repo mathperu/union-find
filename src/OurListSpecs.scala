@@ -197,6 +197,16 @@ object OurListSpecs {
       }
   }.ensuring { _ => l.map(f)(index) == f(l(index)) }
 
+  def mapContains[T, U](l: List[T], f: T => U, value: T): Unit = {
+    decreases(l)
+    l match {
+      case Nil()      => ()
+      case Cons(h, t) => mapContains(t, f, value)
+    }
+  }.ensuring { _ =>
+    l.contains(value) ==> l.map(f).contains(f(value))
+  }
+
   // Range lemmas
 
   def rangeAppend(start: BigInt, until: BigInt): Unit = {

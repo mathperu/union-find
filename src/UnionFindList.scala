@@ -152,7 +152,14 @@ object UnionFindList {
 
       // Invariant IV: rank of a node is less than or equal to its parent's rank
       assert(rankFunc(newHeap)(newNode))
-      assert(newHeap.forall(rankFunc(newHeap)))
+      (!heap.contains(newNode)) because {
+        OurListSpecs.mapContains(
+          heap,
+          n => n.value,
+          newNode
+        )
+        trivial
+      }
       rankInvAppend(heap, newNode)
 
       // Invariant V

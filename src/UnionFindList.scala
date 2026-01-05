@@ -70,7 +70,11 @@ object UnionFindList {
     //    TODO this is technically covered by distFunc, it might be better to derive this as a lemma
     val boundedFuncOnHeap = boundedFunc(heap)
     val boundedInv = heap.forall(boundedFuncOnHeap)
-    require(heap.forall(boundedFuncOnHeap))
+    // require(heap.forall(boundedFuncOnHeap))
+
+    // Invariant VI
+    val boundedRankFuncOnHeap = boundedRankFunc(heap)
+    require(heap.forall(boundedRankFuncOnHeap))
 
     // invariant XXX-A: any traversal finishes at a root
     // require(heap.forall(finishAtRoot(_, heap)))
@@ -81,6 +85,7 @@ object UnionFindList {
     def isValidAddr(addr: BigInt): Boolean =
       0 <= addr && addr < size
 
+    @inline
     def nodeAt(addr: BigInt): Node[T] =
       require(isValidAddr(addr))
       heap(addr)
@@ -95,7 +100,13 @@ object UnionFindList {
       require(isValidAddr(addr))
       require(isValidAddr(n.addr))
       require(n.addr == addr)
+      // for invariant I
       require(parentFuncOnHeap(n))
+      // require(n.rank <= heap.size)
+      // for invariant VI
+      require(boundedRankFuncOnHeap(n))
+      require(!isRoot(n) || isRoot(heap(addr)))
+      // require(!isRoot(n) || n.rank < heap.filter(e => !isRoot(e)).size)
 
       val newHeap = heap.updated(addr, n)
 
@@ -108,10 +119,16 @@ object UnionFindList {
       assert(newHeap.forall(rankFunc(newHeap)))
 
       // Invariant V
-      assert(hasRoot(newHeap))
-      rankDecreasesInvImpliesBoundedInv(newHeap)
+      // boundedRankUpdate(heap, addr, n)
+      /* assert(hasRoot(newHeap))
+      rankDecreasesInvImpliesBoundedInv(newHeap) */
 
+      // Invariant VI
+      boundedRankUpdate(heap, addr, n)
+
+      // Invariant II
       rangeInvImpliesAddrInv(newHeap)
+      // Invariant I
       parentInvUpdate(heap, addr, n)
 
       UF(newHeap)
@@ -152,12 +169,18 @@ object UnionFindList {
 
       // Invariant IV: rank of a node is less than or equal to its parent's rank
       assert(rankFunc(newHeap)(newNode))
-      assert(newHeap.forall(rankFunc(newHeap)))
       rankInvAppend(heap, newNode)
+      assert(newHeap.forall(rankFunc(newHeap)))
 
       // Invariant V
-      assert(hasRoot(newHeap))
-      rankDecreasesInvImpliesBoundedInv(newHeap)
+      /* assert(boundedFunc(newHeap)(newNode))
+      boundedRankAppend(heap, newNode) */
+      /* assert(hasRoot(newHeap))
+      rankDecreasesInvImpliesBoundedInv(newHeap) */
+
+      // Invariant VI
+      assert(boundedRankFunc(newHeap)(newNode))
+      boundedRankAppend(heap, newNode)
 
       (UF(newHeap), newNode)
     }
@@ -252,22 +275,53 @@ object UnionFindList {
       instantiateRank(n1)
       instantiateRank(n2)
 
+      assert(boundedRankFuncOnHeap(n1))
+      assert(boundedRankFuncOnHeap(n2))
+
       if a1 == a2 then (this, a1)
       else
-        (nodeAt(a1), nodeAt(a2)) match {
+        (n1, n2) match {
           case (Root(ad1, v1, r1), Root(ad2, v2, r2)) =>
+            // assert(r1 <= heap.size && r2 <= heap.size)
             if r1 < r2 then
               val newNode1 = Child(a1, v1, r1, a2)
+              // assert(r1 <= heap.filter(e => !isRoot(e)).size)
               val newUF = this.set(a1, newNode1)
               (newUF, a2)
             else if r1 > r2 then
               val newNode2 = Child(a2, v2, r2, a1)
+              // assert(r2 <= heap.filter(e => !isRoot(e)).size)
               val newUF = this.set(a2, newNode2)
               (newUF, a1)
             else
               val newNode1 = Child(a1, v1, r1, a2)
+              // assert(r1 <= heap.filter(e => !isRoot(e)).size)
               val newUF1 = this.set(a1, newNode1)
               val newNode2 = Root(a2, v2, r2 + 1)
+              // assert(r2 + 1 <= heap.size)
+              // precond 5 & 6
+              assert(this.heap.updated(a1, newNode1) == newUF1.heap)
+              OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
+                heap,
+                a1,
+                newNode1,
+                isRoot,
+                a2
+              )
+              // assert(isRoot(newUF1.heap(a2)))
+
+              OurListSpecs.updatedFilterSizeDecreases(
+                heap,
+                a1,
+                newNode1,
+                e => !isRoot(e)
+              )
+              /* assert(
+                this.heap
+                  .filter(e => !isRoot(e))
+                  .size < newUF1.heap.filter(e => !isRoot(e)).size
+              ) */
+              // assert(r2 < newUF1.heap.filter(e => !isRoot(e)).size)
               val newUF2 = newUF1.set(a2, newNode2)
               (newUF2, a2)
 
@@ -368,38 +422,41 @@ object UnionFindList {
         && ((equiv(a1, b) || equiv(a2, b)) || find(b) != union(a1, a2)._2)
     )
 
-    /* // Invariant IV implies invariant V
-    def rankDecreasesInvImpliesBoundedInv: Unit = {
-      //require(l.forall(rankFunc(l)))
-      //require(hasRoot(l))
+    // Invariants II and IV imply invariant V
+    def rankIsBoundedBySize: Unit = {
+      assert(heap.forall(rankFunc(heap)))
+      assert(heap.forall(addrFunc(heap)))
 
-      def rec(l: List[Node[T]], heap: List[Node[T]]): Unit = {
+      def rec(l: List[Node[T]]): Unit = {
         require(l.forall(rankFunc(heap)))
-        require(heap.forall(parentFunc(heap)))
+        require(l.forall(addrFunc(heap)))
         decreases(l)
         l match {
-          case Nil() => ()
+          case Nil()      => ()
           case Cons(h, t) =>
-            val rep = find(h.addr)
-            assert(nodeAt(rep).rank >= h.rank)
-            assert()
+            val repAddr = find(h.addr)
+            val repNode = nodeAt(repAddr)
+            assert(nodeAt(h.addr).rank <= nodeAt(repAddr).rank)
+            h == nodeAt(h.addr) because {
+              assert(heap.contains(h))
+              assert(heap.forall(addrFuncOnHeap))
+              ListSpecs.forallContained(heap, addrFuncOnHeap, h)
+              addrAndHeapMatch(h, heap)
+            }
+            assert(h.rank <= repNode.rank)
+            assert(isRoot(repNode))
+            rankFunc(heap)(repNode) because {
+              assert(heap.contains(h))
+              assert(heap.forall(rankFuncOnHeap))
+              ListSpecs.forallContained(heap, rankFuncOnHeap, h)
+              repNode.rank <= heap.size
+            }
+            rec(t)
         }
-      }.ensuring{_ => l.forall(boundedFunc(heap))}
+      }.ensuring { _ => l.forall(boundedFunc(heap)) }
 
-      rec(heap, heap)
-
-      /* decreases(l)
-      l match {
-        case Nil() => ()
-        case Cons(h, t) => h match {
-            case Child(addr, value, rank, parentAddr) =>
-              isValidAddr(parentAddr, l) && l(parentAddr).rank > rank
-            case Root(addr, value, rank) => rank <= l.size
-          }
-          rankDecreasesInvImpliesBoundedInv(t)
-      } */
-    }.ensuring{_ => heap.forall(boundedFunc(l))}
-     */
+      rec(heap)
+    }.ensuring { _ => heap.forall(boundedFuncOnHeap) }
   }
 
 }

@@ -61,7 +61,7 @@ object InvariantsHelpers {
       require(l.forall(parentFunc(heap)))
 
       l match {
-        case Nil()      =>
+        case Nil()      => ()
         case Cons(h, t) => parentInvUpdateRec(heap, t, addr, n)
       }
     }.ensuring(l.forall(parentFunc(heap.updated(addr, n))))
@@ -200,37 +200,144 @@ object InvariantsHelpers {
   def boundedFunc[T] = (heap: List[Node[T]]) =>
     (n: Node[T]) => (n.rank <= heap.size)
 
-// Invariant IV implies invariant V
+  def boundedAppend[T](l: List[Node[T]], n: Node[T]): Unit = {
+    require(l.forall(boundedFunc(l)))
+    require(boundedFunc(l :+ n)(n))
+
+    def boundedRankAppendRec(
+        l: List[Node[T]],
+        heap: List[Node[T]],
+        n: Node[T]
+    ): Unit = {
+      require(l.forall(boundedFunc(heap)))
+
+      l match {
+        case Nil()      => ()
+        case Cons(h, t) => boundedRankAppendRec(t, heap, n)
+      }
+    }.ensuring(l.forall(boundedFunc(heap :+ n)))
+
+    boundedRankAppendRec(l, l, n)
+    OurListSpecs.forallAppend(l, n, boundedFunc(l :+ n))
+  }.ensuring { _ => (l :+ n).forall(boundedFunc(l :+ n)) }
+
+  def boundedUpdate[T](l: List[Node[T]], addr: BigInt, n: Node[T]): Unit = {
+    require(l.forall(boundedFunc(l)))
+    require(boundedFunc(l)(n))
+    require(0 <= addr && addr < l.size)
+
+    def boundedRankUpdateRec(
+        l: List[Node[T]],
+        heap: List[Node[T]],
+        addr: BigInt,
+        n: Node[T]
+    ): Unit = {
+      require(l.forall(boundedFunc(heap)))
+      require(0 <= addr && addr < heap.size)
+
+      l match {
+        case Nil()      => ()
+        case Cons(h, t) => boundedRankUpdateRec(t, heap, addr, n)
+      }
+    }.ensuring { _ => l.forall(boundedFunc(heap.updated(addr, n))) }
+
+    boundedRankUpdateRec(l, l, addr, n)
+    OurListSpecs.forallUpdate(l, addr, n, boundedFunc(l.updated(addr, n)))
+  }.ensuring { _ => l.updated(addr, n).forall(boundedFunc(l.updated(addr, n))) }
+
+  // Invariant IV implies invariant V
   def rankDecreasesInvImpliesBoundedInv[T](l: List[Node[T]]): Unit = {
     require(l.forall(rankFunc(l)))
     require(hasRoot(l))
-
-    /* def rec(l: List[Node[T]], heap: List[Node[T]]): Unit = {
-require(l.forall(rankFunc(heap)))
-require(heap.forall(parentFunc(heap)))
-decreases(l)
-l match {
-    case Nil() => ()
-    case Cons(h, t) =>
-    val rep = find(h.addr)
-    assert(nodeAt(rep).rank >= h.rank)
-    assert()
-}
-}.ensuring{_ => l.forall(boundedFunc(heap))}
-
-rec(heap, heap) */
-
-    /* decreases(l)
-l match {
-case Nil() => ()
-case Cons(h, t) => h match {
-    case Child(addr, value, rank, parentAddr) =>
-        isValidAddr(parentAddr, l) && l(parentAddr).rank > rank
-    case Root(addr, value, rank) => rank <= l.size
-    }
-    rankDecreasesInvImpliesBoundedInv(t)
-} */
   }.ensuring { _ => l.forall(boundedFunc(l)) }
+
+  // Invariant VI
+  @inline
+  def rankIsBoundedByNumberOfChildren[T](
+      n: Node[T],
+      heap: List[Node[T]]
+  ): Boolean =
+    n.rank <= heap.filter(n => !isRoot(n)).size
+
+  @inline
+  def boundedRankFunc[T] = (heap: List[Node[T]]) =>
+    (n: Node[T]) => rankIsBoundedByNumberOfChildren(n, heap)
+
+  def boundedRankAppend[T](l: List[Node[T]], n: Node[T]): Unit = {
+    require(l.forall(boundedRankFunc(l)))
+    require(boundedRankFunc(l :+ n)(n))
+  }.ensuring { _ => (l :+ n).forall(boundedRankFunc(l :+ n)) }
+
+  def boundedRankUpdate[T](l: List[Node[T]], addr: BigInt, n: Node[T]): Unit = {
+    require(0 <= addr && addr < l.size)
+    require(l.forall(boundedRankFunc(l)))
+    require(boundedRankFunc(l)(n))
+    require(!isRoot(n) || isRoot(l(addr)))
+    // require(!isRoot(n) || n.rank < l.filter(e => !isRoot(e)).size)
+
+    def boundedRankUpdateChildRec(
+        l: List[Node[T]],
+        heap: List[Node[T]],
+        addr: BigInt,
+        n: Node[T]
+    ): Unit = {
+      require(0 <= addr && addr < heap.size)
+      require(l.forall(boundedRankFunc(heap)))
+      require(!isRoot(n))
+
+      OurListSpecs.updatedFilterSizeIncreases(heap, addr, n, e => !isRoot(e))
+      l match {
+        case Nil()      => ()
+        case Cons(h, t) =>
+          boundedRankUpdateChildRec(t, heap, addr, n)
+      }
+    }.ensuring { _ => l.forall(boundedRankFunc(heap.updated(addr, n))) }
+
+    def boundedRankUpdateRootRec(
+        l: List[Node[T]],
+        heap: List[Node[T]],
+        addr: BigInt,
+        n: Node[T]
+    ): Unit = {
+      require(0 <= addr && addr < heap.size)
+      require(l.forall(boundedRankFunc(heap)))
+      require(isRoot(heap(addr)))
+
+      OurListSpecs.updatedFilterSizeIncreases2(heap, addr, n, e => !isRoot(e))
+      l match {
+        case Nil()      => ()
+        case Cons(h, t) =>
+          boundedRankUpdateRootRec(t, heap, addr, n)
+      }
+    }.ensuring { _ => l.forall(boundedRankFunc(heap.updated(addr, n))) }
+
+    n match {
+      case Child(_, _, r, _) =>
+        OurListSpecs.updatedFilterSizeIncreases(l, addr, n, e => !isRoot(e))
+        boundedRankUpdateChildRec(l, l, addr, n)
+        OurListSpecs.forallUpdate(
+          l,
+          addr,
+          n,
+          boundedRankFunc(l.updated(addr, n))
+        )
+      case Root(_, _, r) =>
+        OurListSpecs.updatedFilterSizeIncreases2(l, addr, n, e => !isRoot(e))
+        boundedRankUpdateRootRec(l, l, addr, n)
+        OurListSpecs.forallUpdate(
+          l,
+          addr,
+          n,
+          boundedRankFunc(l.updated(addr, n))
+        )
+    }
+  }.ensuring { _ =>
+    (l.updated(addr, n)).forall(boundedRankFunc(l.updated(addr, n)))
+  }
+
+  def weakenBoundOnRank[T](n: Node[T], heap: List[Node[T]]): Unit = {
+    require(boundedRankFunc(heap)(n))
+  }.ensuring(boundedFunc(heap)(n))
 
   // maybe other invariants?
   // domain is a list

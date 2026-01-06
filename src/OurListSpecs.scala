@@ -2,9 +2,8 @@ package ourlistspecs
 
 import stainless.lang._
 import stainless.proof._
-import stainless.collection.{List, ListSpecs, Nil}
+import stainless.collection.{List, ListSpecs, Nil, Cons}
 import stainless.annotation._
-import stainless.collection.Cons
 
 object OurListSpecs {
 
@@ -49,6 +48,24 @@ object OurListSpecs {
     }
   }.ensuring { _ => (l :+ n)(i) == l(i) }
 
+  def appendFilterSizeDecreases[T](l: List[T], n: T, p: T => Boolean): Unit = {
+    require(p(n))
+
+    l match {
+      case Nil()      => ()
+      case Cons(h, t) => appendFilterSizeDecreases(t, n, p)
+    }
+  }.ensuring { _ => (l :+ n).filter(p).size == l.filter(p).size + 1 }
+
+  def appendFilterSizePreserved[T](l: List[T], n: T, p: T => Boolean): Unit = {
+    require(!p(n))
+
+    l match {
+      case Nil()      => ()
+      case Cons(h, t) => appendFilterSizePreserved(t, n, p)
+    }
+  }.ensuring { _ => (l :+ n).filter(p).size == l.filter(p).size }
+
   // Update lemmas
 
   def forallUpdate[T](
@@ -58,7 +75,8 @@ object OurListSpecs {
       p: T => Boolean
   ): Unit = {
     require(0 <= addr && addr < l.size)
-    require(l.forall(p) && p(elem))
+    require(l.forall(p))
+    require(p(elem))
 
     if addr == 0 then ()
     else
@@ -67,6 +85,87 @@ object OurListSpecs {
         case Cons(h, t) => forallUpdate(t, addr - 1, elem, p)
       }
   }.ensuring(_ => (l.updated(addr, elem)).forall(p))
+
+  def predicateIsPreservedOnNonUpdatedElements[T](
+      l: List[T],
+      addr: BigInt,
+      elem: T,
+      p: T => Boolean,
+      index: BigInt
+  ): Unit = {
+    require(0 <= addr && addr < l.size)
+    require(0 <= index && index < l.size)
+    require(p(l(index)))
+    require(addr != index)
+
+    l match {
+      case Nil()      => ()
+      case Cons(h, t) =>
+        if addr == 0 then ()
+        else if index == 0 then ()
+        else
+          predicateIsPreservedOnNonUpdatedElements(
+            t,
+            addr - 1,
+            elem,
+            p,
+            index - 1
+          )
+    }
+
+  }.ensuring { _ => p(l.updated(addr, elem)(index)) }
+
+  def updatedFilterSizeDecreases[T](
+      l: List[T],
+      addr: BigInt,
+      elem: T,
+      p: T => Boolean
+  ): Unit = {
+    require(0 <= addr && addr < l.size)
+    require(!p(l(addr)))
+    require(p(elem))
+
+    l match {
+      case Nil()      => ()
+      case Cons(h, t) =>
+        if addr == 0 then ()
+        else updatedFilterSizeDecreases(t, addr - 1, elem, p)
+    }
+  }.ensuring(_ => l.updated(addr, elem).filter(p).size == l.filter(p).size + 1)
+
+  def updatedFilterSizeIncreases[T](
+      l: List[T],
+      addr: BigInt,
+      elem: T,
+      p: T => Boolean
+  ): Unit = {
+    require(0 <= addr && addr < l.size)
+    require(p(elem))
+
+    l match {
+      case Nil()      => ()
+      case Cons(h, t) =>
+        if addr == 0 then ()
+        else updatedFilterSizeIncreases(t, addr - 1, elem, p)
+    }
+  }.ensuring(_ => l.updated(addr, elem).filter(p).size >= l.filter(p).size)
+
+  def updatedFilterSizeIncreases2[T](
+      l: List[T],
+      addr: BigInt,
+      elem: T,
+      p: T => Boolean
+  ): Unit = {
+    require(0 <= addr && addr < l.size)
+    require(!p(l(addr)))
+
+    l match {
+      case Nil()      => ()
+      case Cons(h, t) =>
+        if addr == 0 then ()
+        else updatedFilterSizeIncreases2(t, addr - 1, elem, p)
+    }
+  }.ensuring(_ => l.updated(addr, elem).filter(p).size >= l.filter(p).size)
 
   // Slice lemmas
 
@@ -149,11 +248,10 @@ object OurListSpecs {
 
   // Map lemmas
 
-  // TODO rename with actual name of property
-  def mapAppend[T, U](l: List[T], elem: T, f: T => U): Unit = {
+  def mapDistributesOverAppend[T, U](l: List[T], elem: T, f: T => U): Unit = {
     l match {
       case Nil()      => ()
-      case Cons(h, t) => mapAppend(t, elem, f)
+      case Cons(h, t) => mapDistributesOverAppend(t, elem, f)
     }
   }.ensuring(_ => l.map(f) :+ f(elem) == (l :+ elem).map(f))
 
@@ -180,16 +278,6 @@ object OurListSpecs {
       }
   }.ensuring { _ => l.map(f)(index) == f(l(index)) }
 
-  def mapContains[T, U](l: List[T], f: T => U, value: T): Unit = {
-    decreases(l)
-    l match {
-      case Nil()      => ()
-      case Cons(h, t) => mapContains(t, f, value)
-    }
-  }.ensuring { _ =>
-    l.contains(value) ==> l.map(f).contains(f(value))
-  }
-
   // Range lemmas
 
   def rangeAppend(start: BigInt, until: BigInt): Unit = {
@@ -211,4 +299,5 @@ object OurListSpecs {
     if (index == 0) then ()
     else rangeAtIndexPlusStartIsIndexPlusStart(start + 1, until, index - 1)
   }.ensuring(_ => List.range(start, until)(index) == start + index)
+
 }

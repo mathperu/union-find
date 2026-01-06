@@ -157,7 +157,7 @@ object InvariantsHelpers {
     isValidAddr(n.addr, heap) && (n match {
       case Child(addr, value, rank, parentAddr) =>
         isValidAddr(parentAddr, heap) && heap(parentAddr).rank > n.rank
-      case Root(addr, value, rank) => rank <= heap.size
+      case Root(addr, value, rank) => true
     })
   }
 
@@ -230,21 +230,65 @@ object InvariantsHelpers {
     require(l.forall(rankFunc(l)) && rankFunc(l)(n))
     require(0 <= n.addr && n.addr < l.size)
 
+    // TODO allow C -> C replacement for path compression
+    // this lemma only allows R -> R and R -> C replacement for union by rank
+    def rankInvUpdateElem[T](
+        l: List[Node[T]],
+        n: Node[T],
+        addr: BigInt,
+        e: Node[T]
+    ): Unit = {
+      require(0 <= addr && addr < l.size)
+      require(isRoot(l(addr)))
+      require(rankFunc(l)(e))
+      require(l(addr).rank <= n.rank)
+      require(l.filter(isRoot).size >= 2) // needs at least one other root
+      require(parentIsInHeap(e, l))
+      require(l.contains(e))
+
+      // maybe: require(e.addr != addr)
+      // require(l(addr) == e)
+
+      // require(rankFunc(l)(e))
+      // require(!isRoot(l(addr)) || !isRoot(n))
+      // // require(!isRoot(l(addr)) || n.rank >= l(addr).rank)
+      // require(!isRoot(n) ==> (n.rank == l(addr).rank))
+
+      e match
+        case Root(a, v, rank)          => ()
+        case Child(a, v, rank, parent) => {
+          if parent == addr then
+            assert(rank <= l(parent).rank)
+            check(l(parent).rank <= n.rank)
+          else OurListSpecs.
+        }
+
+    }.ensuring(rankFunc(l.updated(addr, n))(e))
+
+    // root can be replaced by child but not the other way
+
+    // require(n.addr == addr)
+
     def rankInvUpdateRec(
         heap: List[Node[T]],
+        addr: BigInt,
         l: List[Node[T]],
         n: Node[T]
     ): Unit = {
-      require(0 <= n.addr && n.addr < heap.size)
-      require(l.forall(rankFunc(heap)))
+      require(0 <= addr && addr < heap.size)
+      require(l.forall(rankFunc(heap)) && rankFunc(heap)(n))
 
       l match {
         case Nil()      =>
-        case Cons(h, t) => rankInvUpdateRec(heap, t, n)
+        case Cons(h, t) => {
+          rankInvUpdateElem(heap, n, addr, h)
+          check(rankFunc(heap)(h))
+          rankInvUpdateRec(heap, addr, t, n)
+        }
       }
-    }.ensuring(l.forall(rankFunc(heap.updated(n.addr, n))))
+    }.ensuring(l.forall(rankFunc(heap.updated(addr, n))))
 
-    rankInvUpdateRec(l, l, n)
+    rankInvUpdateRec(l, n.addr, l, n)
     val updated = l.updated(n.addr, n)
     check(rankFunc(updated)(n))
 

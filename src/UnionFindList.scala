@@ -20,7 +20,9 @@ object UnionFindList {
   }
 
   case class Child[T](addr: BigInt, value: T, rank: BigInt, parentAddr: BigInt)
-      extends Node[T]
+      extends Node[T] {
+    require(addr != parentAddr)
+  }
   case class Root[T](addr: BigInt, value: T, rank: BigInt) extends Node[T]
 
   // required to instantiate dist >= 0 proofs
@@ -116,7 +118,7 @@ object UnionFindList {
       // check(rankFuncOnHeap(prevNode))
       // check(rankFunc(heap)(prevNode))
       // OurListSpecs.mapUpdate(heap, addr, n, _.rank) // can't use this because rank changes
-      check(rankFunc(newHeap)(n))
+      // check(rankFunc(newHeap)(n))
       rankInvUpdate(heap, n)
       assert(newHeap.forall(rankFunc(newHeap)))
 

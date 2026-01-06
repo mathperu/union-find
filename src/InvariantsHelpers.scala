@@ -245,12 +245,6 @@ object InvariantsHelpers {
     OurListSpecs.forallUpdate(l, addr, n, boundedFunc(l.updated(addr, n)))
   }.ensuring { _ => l.updated(addr, n).forall(boundedFunc(l.updated(addr, n))) }
 
-  // Invariant IV implies invariant V
-  def rankDecreasesInvImpliesBoundedInv[T](l: List[Node[T]]): Unit = {
-    require(l.forall(rankFunc(l)))
-    require(hasRoot(l))
-  }.ensuring { _ => l.forall(boundedFunc(l)) }
-
   // Invariant VI
   @inline
   def rankIsBoundedByNumberOfChildren[T](

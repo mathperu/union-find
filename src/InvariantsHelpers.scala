@@ -181,43 +181,15 @@ object InvariantsHelpers {
       require(isRoot(n))
       require(!heap.contains(n))
 
-      // require l to be a subset of heap
-      require(l.content.subsetOf(heap.content))
       l match {
         case Nil()      => ()
         case Cons(h, t) => {
-          assert(rankFunc(heap)(h))
-          // rankInvAppendRec(t, heap, n)
           h match {
             case Child(addr, value, rank, parentAddr) =>
-              assert(isValidAddr(parentAddr, heap))
-              assert(heap(parentAddr).rank > rank)
-              assert(isValidAddr(parentAddr, heap :+ n))
-
-              // show that the child doesn't get any new parents
-              check(heap.contains(h))
-              check(heap.forall(rankFunc(heap)))
-              ListSpecs.forallContained(heap, rankFunc(heap), h)
-              check(heap(parentAddr).rank > rank)
-              check(heap(parentAddr) != n)
               OurListSpecs.appendPreservesIndices(heap, n, parentAddr)
-              check(
-                (heap :+ n)(parentAddr) == heap(parentAddr)
-              ) // <- this is what we need to prove
-              assert((heap :+ n)(parentAddr).rank > rank)
-
-              // we want to get to this:
-              assert(rankFunc(heap :+ n)(h))
-              rankInvAppendRec(t, heap, n)
-
-            case Root(addr, value, rank) =>
-              assert(rank <= heap.size)
-              assert(rank <= (heap :+ n).size)
-
-              // we want to get to this:
-              assert(rankFunc(heap :+ n)(h))
-              rankInvAppendRec(t, heap, n)
+            case Root(addr, value, rank) => ()
           }
+          rankInvAppendRec(t, heap, n)
         }
       }
     }.ensuring(l.forall(rankFunc(heap :+ n)))

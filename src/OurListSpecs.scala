@@ -126,14 +126,21 @@ object OurListSpecs {
     require(0 <= addr && addr < l.size)
     require(0 <= i1 && i1 < l.size)
     require(0 <= i2 && i2 < l.size)
-    require(addr != i1 && addr != i2)
+    require(addr != i1 && addr != i2 && i1 != i2)
     require(p(l(i1), l(i2)))
+
+    def p1 = (t1: T) => (t2: T) => p(t1, t2)
+    def p2 = (t2: T) => (t1: T) => p(t1, t2)
 
     l match {
       case Nil()      => ()
       case Cons(h, t) =>
         if addr == 0 then ()
-        else if i1 == 0 || i2 == 0 then ()
+        else if i1 == 0 || i2 == 0 then
+          if i1 < i2 then
+            predicateIsPreservedOnNonUpdatedElements(l, addr, elem, p1(h), i2)
+          else
+            predicateIsPreservedOnNonUpdatedElements(l, addr, elem, p2(h), i1)
         else
           predicatePreservedOnNonUpdatedPair(
             t,

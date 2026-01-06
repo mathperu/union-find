@@ -226,9 +226,13 @@ object InvariantsHelpers {
     OurListSpecs.forallAppend(l, n, rankFunc(l :+ n))
   }.ensuring { _ => (l :+ n).forall(rankFunc(l :+ n)) }
 
-  def rankInvUpdate[T](l: List[Node[T]], n: Node[T]): Unit = {
+  def rankInvUpdate[T](l: List[Node[T]], addr: BigInt, n: Node[T]): Unit = {
     require(l.forall(rankFunc(l)) && rankFunc(l)(n))
-    require(0 <= n.addr && n.addr < l.size)
+    require(0 <= addr && addr < l.size)
+    require(isRoot(l(addr)))
+    require(l(addr).rank <= n.rank)
+    require(l.forall(addrFunc(l)))
+    require(isRoot(n) || l(addr).rank == n.rank)
 
     // TODO allow C -> C replacement for path compression
     // this lemma only allows R -> R and R -> C replacement for union by rank
@@ -242,29 +246,16 @@ object InvariantsHelpers {
       require(isRoot(l(addr)))
       require(rankFunc(l)(e))
       require(l(addr).rank <= n.rank)
-      // require(l.filter(isRoot).size >= 2) // needs at least one other root
       require(parentIsInHeap(e, l))
       require(addrFunc(l)(e))
       require(l.contains(e))
 
-      // maybe: require(e.addr != addr)
-      // require(l(addr) == e)
-
-      // require(rankFunc(l)(e))
-      // require(!isRoot(l(addr)) || !isRoot(n))
-      // // require(!isRoot(l(addr)) || n.rank >= l(addr).rank)
-      // require(!isRoot(n) ==> (n.rank == l(addr).rank))
-
       e match
         case Root(a, v, rank)          => ()
-        case Child(a, v, rank, parent) => {
-          if parent == addr then
-            assert(rank <= l(parent).rank)
-            check(l(parent).rank <= n.rank)
+        case Child(a, v, rank, parent) =>
+          if parent == addr then ()
           else if a == addr then ()
           else
-            assert(l(a) == e)
-            assert(rankFunc(l)(e))
             OurListSpecs.predicatePreservedOnNonUpdatedPair(
               l,
               a,
@@ -274,22 +265,8 @@ object InvariantsHelpers {
               (c: Node[T], p: Node[T]) => c.rank < p.rank
             )
 
-            assert(isValidAddr(a, l.updated(addr, n)))
             OurListSpecs.updatePreservesIndices(l, addr, n, a)
-            assert(l(a) == l.updated(addr, n)(a))
-            assert(e == l.updated(addr, n)(a))
-
-            // asssert(l(parent).rank > n.rank)
-
-            // want: rankFunc()
-            // check(rankFunc(l.updated(addr, n))(e)))
-        }
-
     }.ensuring(rankFunc(l.updated(addr, n))(e))
-
-    // root can be replaced by child but not the other way
-
-    // require(n.addr == addr)
 
     def rankInvUpdateRec(
         heap: List[Node[T]],
@@ -305,21 +282,23 @@ object InvariantsHelpers {
 
       l match {
         case Nil()      =>
-        case Cons(h, t) => {
+        case Cons(h, t) =>
           rankInvUpdateElem(heap, n, addr, h)
-          check(rankFunc(heap)(h))
           rankInvUpdateRec(heap, addr, t, n)
-        }
       }
     }.ensuring(l.forall(rankFunc(heap.updated(addr, n))))
 
-    rankInvUpdateRec(l, n.addr, l, n)
-    val updated = l.updated(n.addr, n)
-    check(rankFunc(updated)(n))
+    n match
+      case Root(a, _, _) =>
+        assert(rankFunc(l.updated(addr, n))(n))
+      case Child(a, _, r, p) =>
+        OurListSpecs.updatePreservesIndices(l, addr, n, p)
+        assert(rankFunc(l.updated(addr, n))(n))
 
-    OurListSpecs.forallUpdate(l, n.addr, n, rankFunc(l.updated(n.addr, n)))
+    rankInvUpdateRec(l, addr, l, n)
+    OurListSpecs.forallUpdate(l, addr, n, rankFunc(l.updated(addr, n)))
   }.ensuring { _ =>
-    (l.updated(n.addr, n)).forall(rankFunc(l.updated(n.addr, n)))
+    (l.updated(addr, n)).forall(rankFunc(l.updated(addr, n)))
   }
 
   // Invariant V: rank of a node is less than or equal to the size of the heap

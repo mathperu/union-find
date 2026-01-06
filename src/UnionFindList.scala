@@ -98,8 +98,11 @@ object UnionFindList {
       require(isValidAddr(n.addr))
       require(n.addr == addr)
       require(parentFuncOnHeap(n))
-      // TODO ask Mathilde about this
+      // for invariant IV
       require(rankFuncOnHeap(n))
+      require(isRoot(heap(addr)))
+      require(heap(addr).rank <= n.rank)
+      require(isRoot(n) || heap(addr).rank == n.rank)
 
       val newHeap = heap.updated(addr, n)
       val prevNode = heap(addr)
@@ -119,7 +122,7 @@ object UnionFindList {
       // check(rankFunc(heap)(prevNode))
       // OurListSpecs.mapUpdate(heap, addr, n, _.rank) // can't use this because rank changes
       // check(rankFunc(newHeap)(n))
-      rankInvUpdate(heap, n)
+      rankInvUpdate(heap, addr, n)
       assert(newHeap.forall(rankFunc(newHeap)))
 
       // Invariant V
@@ -286,10 +289,24 @@ object UnionFindList {
               (newUF, a1)
             else
               val newNode1 = Child(a1, v1, r1, a2)
-              val newUF1 = this.set(a1, newNode1)
               val newNode2 = Root(a2, v2, r2 + 1)
-              val newUF2 = newUF1.set(a2, newNode2)
-              (newUF2, a2)
+              val newUF2 = this.set(a2, newNode2)
+              OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
+                heap,
+                a2,
+                newNode2,
+                isRoot,
+                a1
+              )
+              OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
+                heap,
+                a2,
+                newNode2,
+                e => e.rank == newNode1.rank,
+                a1
+              )
+              val newUF1 = newUF2.set(a1, newNode1)
+              (newUF1, a2)
 
           case (_, _) =>
             assert(nodeAtIsRoot(a1) && nodeAtIsRoot(a2))

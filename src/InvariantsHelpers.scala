@@ -226,6 +226,33 @@ object InvariantsHelpers {
     OurListSpecs.forallAppend(l, n, rankFunc(l :+ n))
   }.ensuring { _ => (l :+ n).forall(rankFunc(l :+ n)) }
 
+  def rankInvUpdate[T](l: List[Node[T]], n: Node[T]): Unit = {
+    require(l.forall(rankFunc(l)) && rankFunc(l)(n))
+    require(0 <= n.addr && n.addr < l.size)
+
+    def rankInvUpdateRec(
+        heap: List[Node[T]],
+        l: List[Node[T]],
+        n: Node[T]
+    ): Unit = {
+      require(0 <= n.addr && n.addr < heap.size)
+      require(l.forall(rankFunc(heap)))
+
+      l match {
+        case Nil()      =>
+        case Cons(h, t) => rankInvUpdateRec(heap, t, n)
+      }
+    }.ensuring(l.forall(rankFunc(heap.updated(n.addr, n))))
+
+    rankInvUpdateRec(l, l, n)
+    val updated = l.updated(n.addr, n)
+    check(rankFunc(updated)(n))
+
+    OurListSpecs.forallUpdate(l, n.addr, n, rankFunc(l.updated(n.addr, n)))
+  }.ensuring { _ =>
+    (l.updated(n.addr, n)).forall(rankFunc(l.updated(n.addr, n)))
+  }
+
   // Invariant V: rank of a node is less than or equal to the size of the heap
   @inline
   def boundedFunc[T] = (heap: List[Node[T]]) =>

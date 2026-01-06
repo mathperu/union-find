@@ -96,23 +96,33 @@ object UnionFindList {
       require(isValidAddr(n.addr))
       require(n.addr == addr)
       require(parentFuncOnHeap(n))
+      // TODO ask Mathilde about this
+      require(rankFuncOnHeap(n))
 
       val newHeap = heap.updated(addr, n)
+      val prevNode = heap(addr)
 
       // invariant III
       OurListSpecs.mapAtIndex(heap, addr, _.addr)
       OurListSpecs.rangeAtIndexPlusStartIsIndexPlusStart(0, heap.size, addr)
       OurListSpecs.mapUpdate(heap, addr, n, _.addr)
 
+      // Invariant I and II
+      rangeInvImpliesAddrInv(newHeap)
+      parentInvUpdate(heap, addr, n)
+
       // Invariant IV
+      // OurListSpecs.mapAtIndex(newHeap, addr)
+      // check(rankFuncOnHeap(prevNode))
+      // check(rankFunc(heap)(prevNode))
+      // OurListSpecs.mapUpdate(heap, addr, n, _.rank) // can't use this because rank changes
+      check(rankFunc(newHeap)(n))
+      rankInvUpdate(heap, n)
       assert(newHeap.forall(rankFunc(newHeap)))
 
       // Invariant V
       assert(hasRoot(newHeap))
       rankDecreasesInvImpliesBoundedInv(newHeap)
-
-      rangeInvImpliesAddrInv(newHeap)
-      parentInvUpdate(heap, addr, n)
 
       UF(newHeap)
 

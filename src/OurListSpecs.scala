@@ -34,23 +34,6 @@ object OurListSpecs {
     }
   }.ensuring { _ => (l :+ elem).forall(p) }
 
-  def forallTail[T](
-      l: List[T],
-      head: T,
-      tail: List[T],
-      p: T => Boolean
-  ): Unit = {
-    require(l.forall(p))
-    decreases(tail)
-    tail match {
-      case Nil()      => ()
-      case Cons(h, t) =>
-        assert(p(head))
-        assert(p(h))
-        forallTail(tail, h, t, p)
-    }
-  }.ensuring { _ => tail.forall(p) }
-
   def appendPreservesIndices[T](l: List[T], n: T, i: BigInt): Unit = {
     require(0 <= i && i < l.size)
     decreases(l)

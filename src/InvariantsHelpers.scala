@@ -242,8 +242,9 @@ object InvariantsHelpers {
       require(isRoot(l(addr)))
       require(rankFunc(l)(e))
       require(l(addr).rank <= n.rank)
-      require(l.filter(isRoot).size >= 2) // needs at least one other root
+      // require(l.filter(isRoot).size >= 2) // needs at least one other root
       require(parentIsInHeap(e, l))
+      require(addrFunc(l)(e))
       require(l.contains(e))
 
       // maybe: require(e.addr != addr)
@@ -260,7 +261,28 @@ object InvariantsHelpers {
           if parent == addr then
             assert(rank <= l(parent).rank)
             check(l(parent).rank <= n.rank)
-          else OurListSpecs.
+          else if a == addr then ()
+          else
+            assert(l(a) == e)
+            assert(rankFunc(l)(e))
+            OurListSpecs.predicatePreservedOnNonUpdatedPair(
+              l,
+              a,
+              parent,
+              addr,
+              n,
+              (c: Node[T], p: Node[T]) => c.rank < p.rank
+            )
+
+            assert(isValidAddr(a, l.updated(addr, n)))
+            OurListSpecs.updatePreservesIndices(l, addr, n, a)
+            assert(l(a) == l.updated(addr, n)(a))
+            assert(e == l.updated(addr, n)(a))
+
+            // asssert(l(parent).rank > n.rank)
+
+            // want: rankFunc()
+            // check(rankFunc(l.updated(addr, n))(e)))
         }
 
     }.ensuring(rankFunc(l.updated(addr, n))(e))
@@ -277,6 +299,9 @@ object InvariantsHelpers {
     ): Unit = {
       require(0 <= addr && addr < heap.size)
       require(l.forall(rankFunc(heap)) && rankFunc(heap)(n))
+      require(isRoot(heap(addr)))
+      require(heap(addr).rank <= n.rank)
+      require(l.forall(addrFunc(heap)))
 
       l match {
         case Nil()      =>

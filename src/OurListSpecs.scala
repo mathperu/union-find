@@ -115,6 +115,37 @@ object OurListSpecs {
 
   }.ensuring { _ => p(l.updated(addr, elem)(index)) }
 
+  def predicatePreservedOnNonUpdatedPair[T](
+      l: List[T],
+      i1: BigInt,
+      i2: BigInt,
+      addr: BigInt,
+      elem: T,
+      p: (T, T) => Boolean
+  ): Unit = {
+    require(0 <= addr && addr < l.size)
+    require(0 <= i1 && i1 < l.size)
+    require(0 <= i2 && i2 < l.size)
+    require(addr != i1 && addr != i2)
+    require(p(l(i1), l(i2)))
+
+    l match {
+      case Nil()      => ()
+      case Cons(h, t) =>
+        if addr == 0 then ()
+        else if i1 == 0 || i2 == 0 then ()
+        else
+          predicatePreservedOnNonUpdatedPair(
+            t,
+            i1 - 1,
+            i2 - 1,
+            addr - 1,
+            elem,
+            p
+          )
+    }
+  }.ensuring { _ => p(l.updated(addr, elem)(i1), l.updated(addr, elem)(i2)) }
+
   def updatedFilterSizeDecreases[T](
       l: List[T],
       addr: BigInt,
@@ -166,6 +197,25 @@ object OurListSpecs {
         else updatedFilterSizeIncreases2(t, addr - 1, elem, p)
     }
   }.ensuring(_ => l.updated(addr, elem).filter(p).size >= l.filter(p).size)
+
+  def updatePreservesIndices[T](
+      l: List[T],
+      addr: BigInt,
+      elem: T,
+      i: BigInt
+  ): Unit = {
+    require(0 <= addr && addr < l.size)
+    require(0 <= i && i < l.size)
+    require(addr != i)
+
+    l match {
+      case Nil()      => ()
+      case Cons(h, t) =>
+        if addr == 0 then ()
+        else if i == 0 then ()
+        else updatePreservesIndices(t, addr - 1, elem, i - 1)
+    }
+  }.ensuring { _ => l.updated(addr, elem)(i) == l(i) }
 
   // Slice lemmas
 
@@ -254,6 +304,16 @@ object OurListSpecs {
       case Cons(h, t) => mapDistributesOverAppend(t, elem, f)
     }
   }.ensuring(_ => l.map(f) :+ f(elem) == (l :+ elem).map(f))
+
+  def mapContains[T, U](l: List[T], f: T => U, value: T): Unit = {
+    decreases(l)
+    l match {
+      case Nil()      => ()
+      case Cons(h, t) => mapContains(t, f, value)
+    }
+  }.ensuring { _ =>
+    l.contains(value) ==> l.map(f).contains(f(value))
+  }
 
   def mapUpdate[T, U](l: List[T], addr: BigInt, elem: T, f: T => U): Unit = {
     require(0 <= addr && addr < l.size)

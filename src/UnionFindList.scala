@@ -160,7 +160,7 @@ object UnionFindList {
 
       // Invariant III: addresses are correct
       OurListSpecs.rangeAppend(0, heap.size)
-      OurListSpecs.mapAppend(heap, newNode, _.addr)
+      OurListSpecs.mapDistributesOverAppend(heap, newNode, _.addr)
 
       // Invariant IV: rank of a node is less than or equal to its parent's rank
       assert(rankFunc(newHeap)(newNode))

@@ -319,7 +319,7 @@ object InvariantsHelpers {
             e => !isRoot(e)
           )
         case Root(_, _, r) =>
-          OurListSpecs.updatedFilterSizeIncreases2(
+          OurListSpecs.updatedFilterSizeIncreases(
             heap,
             addr,
             n,

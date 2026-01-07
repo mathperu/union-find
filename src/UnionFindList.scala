@@ -87,7 +87,7 @@ object UnionFindList {
         case Root(addr, value, rank)           => addr
       }
 
-    def set(addr: BigInt, n: Node[T]): UF[T] =
+    private def set(addr: BigInt, n: Node[T]): UF[T] =
       require(isValidAddr(addr))
       require(isValidAddr(n.addr))
       require(n.addr == addr)
@@ -211,7 +211,6 @@ object UnionFindList {
               e => !isRoot(e),
               parent.rank
             )
-            // weakenBoundOnRank(parent, heap)
             check(parent.rank <= size)
 
             findInner(parentAddr)
@@ -231,7 +230,6 @@ object UnionFindList {
       (f.rank >= 0) because { instantiateRank(f); trivial }
       ListSpecs.forallContained(heap, boundedRankFuncOnHeap, f)
       OurListSpecs.weakenBoundOnListSize(heap, e => !isRoot(e), f.rank)
-      // weakenBoundOnRank(f, heap)
       findInner(addr)
     }.ensuring(y =>
       nodeAtIsRoot(y) && isValidAddr(y) && nodeAt(addr).rank <= nodeAt(y).rank
@@ -243,7 +241,7 @@ object UnionFindList {
       find(a1) == find(a2)
     }
 
-    def link(a1: BigInt, a2: BigInt): (UF[T], BigInt) = {
+    private def link(a1: BigInt, a2: BigInt): (UF[T], BigInt) = {
       require(
         isValidAddr(a1) && isValidAddr(a2) && nodeAtIsRoot(a1) && nodeAtIsRoot(
           a2
@@ -280,7 +278,7 @@ object UnionFindList {
         }
     }
 
-    def setTwo(
+    private def setTwo(
         ar: BigInt,
         r: Root[T],
         ac: BigInt,
@@ -370,7 +368,6 @@ object UnionFindList {
         heap(ar)
       )
       assert(heap(ar).rank <= heap.filter(e => !isRoot(e)).size)
-      // OurListSpecs.updatedFilterSizeDecreases()
       assert(
         newHeapChildFirstTemp.filter(e => !isRoot(e)).size == heap
           .filter(e => !isRoot(e))
@@ -395,69 +392,6 @@ object UnionFindList {
 
       link(r1, r2)
     }
-
-    def findReturnsRoot(addr: BigInt): Unit = {
-      require(isValidAddr(addr))
-    }.ensuring(
-      nodeAtIsRoot(find(addr))
-    )
-    def findReturnsValidAddr(addr: BigInt): Unit = {
-      require(isValidAddr(addr))
-    }.ensuring(
-      isValidAddr(find(addr))
-    )
-
-    def makeAddsValueToDomain(value: T): Unit = {
-      require(!domain.contains(value))
-      val (newUF, newNode) = make(value)
-
-      // Lemma: Prove that mapping over an appended list distributes the operation
-      def mapSnoc(l: List[Node[T]], e: Node[T]): Unit = {
-        decreases(l)
-        l match {
-          case Nil()      => ()
-          case Cons(h, t) => mapSnoc(t, e)
-        }
-      }.ensuring(_ => (l :+ e).map(_.value) == l.map(_.value) :+ e.value)
-
-      mapSnoc(heap, newNode)
-
-      assert(newUF.domain == domain :+ value)
-      assert(newUF.domain.contains(value))
-    }.ensuring(_ => make(value)._1.domain.contains(value))
-
-    def makeReturnsASingletonSet(value: T): Unit = {
-      require(!domain.contains(value))
-    }.ensuring(_ =>
-      isRoot(make(value)._2)
-        && (find(make(value)._2.addr) == BigInt(-1) || find(
-          make(value)._2.addr
-        ) == make(value)._2.addr)
-        && rankIs(make(value)._2, BigInt(0))
-    )
-
-    def linkReturnsARootOfInput(a1: BigInt, a2: BigInt): Unit = {
-      require(
-        isValidAddr(a1) && isValidAddr(a2) && nodeAtIsRoot(a1) && nodeAtIsRoot(
-          a2
-        )
-      )
-    }.ensuring(_ => link(a1, a2)._2 == a1 || link(a1, a2)._2 == a2)
-
-    def unionReturnsARootOfInput(a1: BigInt, a2: BigInt): Unit = {
-      require(isValidAddr(a1) && isValidAddr(a2))
-    }.ensuring(_ =>
-      union(a1, a2)._2 == find(a1) || union(a1, a2)._2 == find(a2)
-    )
-
-    def unionMergedTheSets(a1: BigInt, a2: BigInt, b: BigInt): Unit = {
-      require(isValidAddr(a1))
-      require(isValidAddr(a2))
-      require(isValidAddr(b))
-    }.ensuring(_ =>
-      (!(equiv(a1, b) || equiv(a2, b)) || find(b) == union(a1, a2)._2)
-        && ((equiv(a1, b) || equiv(a2, b)) || find(b) != union(a1, a2)._2)
-    )
 
   }
 

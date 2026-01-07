@@ -241,7 +241,7 @@ object UnionFindList {
       find(a1) == find(a2)
     }
 
-    private def link(a1: BigInt, a2: BigInt): (UF[T], BigInt) = {
+    def link(a1: BigInt, a2: BigInt): (UF[T], BigInt) = {
       require(
         isValidAddr(a1) && isValidAddr(a2) && nodeAtIsRoot(a1) && nodeAtIsRoot(
           a2

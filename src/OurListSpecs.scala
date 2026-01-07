@@ -6,9 +6,7 @@ import stainless.collection.{List, ListSpecs, Nil, Cons}
 import stainless.annotation._
 
 object OurListSpecs {
-
   // Append lemmas
-
   def appendedElementIsAtIndexOldSize[T](l: List[T], elem: T): Unit = {
     decreases(l)
     l match {

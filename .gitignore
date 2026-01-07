@@ -59,3 +59,5 @@ devenv.local.yaml
 .scala-build/
 
 .stainless-cache/
+
+stainless-stack-trace.txt

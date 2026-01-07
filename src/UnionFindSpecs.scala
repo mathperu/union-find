@@ -26,17 +26,7 @@ object UnionFindSpecs {
     def makeAddsValueToDomain(value: T): Unit = {
       require(!uf.domain.contains(value))
       val (newUF, newNode) = uf.make(value)
-
-      // Lemma: Prove that mapping over an appended list distributes the operation
-      def mapSnoc(l: List[Node[T]], e: Node[T]): Unit = {
-        decreases(l)
-        l match {
-          case Nil()      => ()
-          case Cons(h, t) => mapSnoc(t, e)
-        }
-      }.ensuring(_ => (l :+ e).map(_.value) == l.map(_.value) :+ e.value)
-
-      mapSnoc(uf.heap, newNode)
+      OurListSpecs.mapDistributesOverAppend(uf.heap, newNode, _.value)
 
       assert(newUF.domain == uf.domain :+ value)
       assert(newUF.domain.contains(value))

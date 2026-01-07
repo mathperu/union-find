@@ -68,12 +68,6 @@ object UnionFindList {
     val rankInv = heap.forall(rankFuncOnHeap)
     require(heap.forall(rankFuncOnHeap))
 
-    // Invariant V: rank of a node is bounded by the size of the heap it's in
-    //    TODO this is technically covered by distFunc, it might be better to derive this as a lemma
-    val boundedFuncOnHeap = boundedFunc(heap)
-    val boundedInv = heap.forall(boundedFuncOnHeap)
-    // require(heap.forall(boundedFuncOnHeap))
-
     // Invariant VI
     val boundedRankFuncOnHeap = boundedRankFunc(heap)
     require(heap.forall(boundedRankFuncOnHeap))
@@ -129,18 +123,8 @@ object UnionFindList {
       parentInvUpdate(heap, addr, n)
 
       // Invariant IV
-      // OurListSpecs.mapAtIndex(newHeap, addr)
-      // check(rankFuncOnHeap(prevNode))
-      // check(rankFunc(heap)(prevNode))
-      // OurListSpecs.mapUpdate(heap, addr, n, _.rank) // can't use this because rank changes
-      // check(rankFunc(newHeap)(n))
       rankInvUpdate(heap, addr, n)
       assert(newHeap.forall(rankFunc(newHeap)))
-
-      // Invariant V
-      // boundedRankUpdate(heap, addr, n)
-      /* assert(hasRoot(newHeap))
-      rankDecreasesInvImpliesBoundedInv(newHeap) */
 
       // Invariant VI
       boundedRankUpdate(heap, addr, n)
@@ -198,12 +182,6 @@ object UnionFindList {
       }
       rankInvAppend(heap, newNode)
 
-      // Invariant V
-      /* assert(boundedFunc(newHeap)(newNode))
-      boundedRankAppend(heap, newNode) */
-      /* assert(hasRoot(newHeap))
-      rankDecreasesInvImpliesBoundedInv(newHeap) */
-
       // Invariant VI
       assert(boundedRankFunc(newHeap)(newNode))
       boundedRankAppend(heap, newNode)
@@ -226,42 +204,24 @@ object UnionFindList {
 
         nodeAt(addr) match {
           case Child(addr, value, dist, parentAddr) => {
-            // prove: isValidAddr(parentAddr) using parentInv
-            isValidAddr(parentAddr) because {
-              heap.contains(f)
-              ListSpecs.forallContained(heap, parentFuncOnHeap, f)
-              parentIsInHeap(f, heap)
-            }
-
-            check(isValidAddr(parentAddr))
+            ListSpecs.forallContained(heap, parentFuncOnHeap, f)
             val parent = nodeAt(parentAddr)
             check(rankInv)
 
-            (parent.rank > dist) because {
-              heap.contains(f)
-              ListSpecs.forallContained(heap, rankFuncOnHeap, f)
-              rankDecreasesAlongEdges(f, heap)
-            }
+            ListSpecs.forallContained(heap, rankFuncOnHeap, f)
 
             instantiateRank(parent)
             check(parent.rank >= 0)
-            (parent.rank <= size) because {
-              heap.contains(parent)
-              ListSpecs.forallContained(heap, boundedFuncOnHeap, parent)
-              trivial
-            }
+
+            ListSpecs.forallContained(heap, boundedRankFuncOnHeap, parent)
+            weakenBoundOnRank(parent, heap)
             check(parent.rank <= size)
 
             findInner(parentAddr)
           }
           case r @ Root(addr, value, rank) => {
             instantiateRank(r)
-            isValidAddr(addr) because {
-              heap.contains(r)
-              ListSpecs.forallContained(heap, addrFuncOnHeap, r)
-              addrAndHeapMatch(r, heap)
-              trivial
-            }
+            ListSpecs.forallContained(heap, addrFuncOnHeap, r)
             addr
           }
         }
@@ -272,11 +232,8 @@ object UnionFindList {
       // Invoke invariants on Node[T]
       val f = nodeAt(addr)
       (f.rank >= 0) because { instantiateRank(f); trivial }
-      (f.rank <= size) because {
-        heap.contains(f)
-        ListSpecs.forallContained(heap, boundedFuncOnHeap, f)
-        trivial
-      }
+      ListSpecs.forallContained(heap, boundedRankFuncOnHeap, f)
+      weakenBoundOnRank(f, heap)
       findInner(addr)
     }.ensuring(y =>
       nodeAtIsRoot(y) && isValidAddr(y) && nodeAt(addr).rank <= nodeAt(y).rank
@@ -302,70 +259,21 @@ object UnionFindList {
       instantiateRank(n2)
 
       ListSpecs.forallContained(heap, boundedRankFuncOnHeap, n1)
-      // assert(boundedRankFuncOnHeap(n1))
       ListSpecs.forallContained(heap, boundedRankFuncOnHeap, n2)
-      // assert(boundedRankFuncOnHeap(n2))
 
       if a1 == a2 then (this, a1)
       else
         (n1, n2) match {
           case (Root(ad1, v1, r1), Root(ad2, v2, r2)) =>
-            // assert(r1 <= heap.size && r2 <= heap.size)
             if r1 < r2 then
               val newNode1 = Child(a1, v1, r1, a2)
-              // assert(r1 <= heap.filter(e => !isRoot(e)).size)
               val newUF = this.set(a1, newNode1)
               (newUF, a2)
             else if r1 > r2 then
               val newNode2 = Child(a2, v2, r2, a1)
-              // assert(r2 <= heap.filter(e => !isRoot(e)).size)
               val newUF = this.set(a2, newNode2)
               (newUF, a1)
             else
-              // val newNode1 = Child(a1, v1, r1, a2)
-              // val newNode2 = Root(a2, v2, r2 + 1)
-              // // assert(r2 + 1 <= heap.size)
-              // // precond 5 & 6
-              // assert(this.heap.updated(a1, newNode1) == newUF1.heap)
-              // OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
-              //   heap,
-              //   a1,
-              //   newNode1,
-              //   isRoot,
-              //   a2
-              // )
-              // // assert(isRoot(newUF1.heap(a2)))
-
-              // OurListSpecs.updatedFilterSizeDecreases(
-              //   heap,
-              //   a1,
-              //   newNode1,
-              //   e => !isRoot(e)
-              // )
-              // /* assert(
-              //   this.heap
-              //     .filter(e => !isRoot(e))
-              //     .size < newUF1.heap.filter(e => !isRoot(e)).size
-              // ) */
-              // // assert(r2 < newUF1.heap.filter(e => !isRoot(e)).size)
-              // val newUF2 = this.set(a2, newNode2)
-              // OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
-              //   heap,
-              //   a2,
-              //   newNode2,
-              //   isRoot,
-              //   a1
-              // )
-              // OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
-              //   heap,
-              //   a2,
-              //   newNode2,
-              //   e => e.rank == newNode1.rank,
-              //   a1
-              // )
-              // val newUF1 = newUF2.set(a1, newNode1)
-              // // (newUF1, a2)
-
               (setTwo(a1, Root(a1, v1, r1 + 1), a2, Child(a2, v2, r2, a1)), a1)
 
           case (_, _) =>

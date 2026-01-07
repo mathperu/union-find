@@ -376,19 +376,17 @@ object UnionFindList {
 
     def setTwo(
         ar: BigInt,
-        r: Node[T],
+        r: Root[T],
         ac: BigInt,
-        c: Node[T]
+        c: Child[T]
     ): UF[T] = {
       require(isValidAddr(ar))
       require(isValidAddr(r.addr))
       require(r.addr == ar)
-      require(isRoot(r))
 
       require(isValidAddr(ac))
       require(isValidAddr(c.addr))
       require(c.addr == ac)
-      require(!isRoot(c))
 
       require(ar != ac)
 
@@ -398,6 +396,8 @@ object UnionFindList {
 
       // for invariant IV
       require(heap(ac).rank == c.rank)
+      require(c.parentAddr == ar)
+      require(heap(ar).rank == heap(ac).rank)
 
       // for invariant VI
       require(r.rank == heap(ar).rank + 1)
@@ -421,14 +421,12 @@ object UnionFindList {
       )
       OurListSpecs.mapUpdate(newHeapRootFirstTemp, ac, c, _.addr)
       // Invariant II
+      rangeInvImpliesAddrInv(newHeapRootFirstTemp)
       rangeInvImpliesAddrInv(newHeapRootFirst)
       // Invariant I
       parentInvUpdate(heap, ar, r)
       parentInvUpdate(newHeapRootFirstTemp, ac, c)
       // Invariant IV
-      // val newNode1 = Child(a1, v1, r1, a2)
-      // val newNode2 = Root(a2, v2, r2 + 1)
-      // val newUF2 = this.set(a2, newNode2)
       OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
         heap,
         ar,
@@ -436,12 +434,6 @@ object UnionFindList {
         isRoot,
         ac
       )
-      // ListSpecs.forallContained(
-      //   heap,
-      //   addrFuncOnHeap,
-      //   c
-      // )
-      // assert(heap(ac) == c) // inv
       OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
         heap,
         ar,
@@ -449,13 +441,7 @@ object UnionFindList {
         e => e.rank == c.rank,
         ac
       )
-      // to be proved for rankinvupdate
-      assert(rankFunc(newHeapRootFirstTemp)(c)) // inv
-      assert(newHeapRootFirstTemp.forall(rankFunc(newHeapRootFirstTemp)))
-
-      rangeInvImpliesAddrInv(newHeapRootFirstTemp)
-      assert(newHeapRootFirstTemp.forall(addrFunc(newHeapRootFirstTemp)))
-
+      rankInvUpdate(heap, ar, r)
       rankInvUpdate(newHeapRootFirstTemp, ac, c)
 
       // Add c first and check invariant VI

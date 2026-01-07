@@ -72,12 +72,6 @@ object UnionFindList {
     val boundedRankFuncOnHeap = boundedRankFunc(heap)
     require(heap.forall(boundedRankFuncOnHeap))
 
-    // invariant XXX-A: any traversal finishes at a root
-    // require(heap.forall(finishAtRoot(_, heap)))
-
-    // invariant XXX-B: any traversal is bounded by the heap's size
-    // require(heap.forall(traverseBounded(_, heap)))
-
     def isValidAddr(addr: BigInt): Boolean =
       0 <= addr && addr < size
 
@@ -104,11 +98,9 @@ object UnionFindList {
       require(isRoot(heap(addr)))
       require(heap(addr).rank <= n.rank)
       require(isRoot(n) || heap(addr).rank == n.rank)
-      // require(n.rank <= heap.size)
       // for invariant VI
       require(boundedRankFuncOnHeap(n))
       require(!isRoot(n) || isRoot(heap(addr)))
-      // require(!isRoot(n) || n.rank < heap.filter(e => !isRoot(e)).size)
 
       val newHeap = heap.updated(addr, n)
       val prevNode = heap(addr)
@@ -214,7 +206,12 @@ object UnionFindList {
             check(parent.rank >= 0)
 
             ListSpecs.forallContained(heap, boundedRankFuncOnHeap, parent)
-            weakenBoundOnRank(parent, heap)
+            OurListSpecs.weakenBoundOnListSize(
+              heap,
+              e => !isRoot(e),
+              parent.rank
+            )
+            // weakenBoundOnRank(parent, heap)
             check(parent.rank <= size)
 
             findInner(parentAddr)
@@ -233,7 +230,8 @@ object UnionFindList {
       val f = nodeAt(addr)
       (f.rank >= 0) because { instantiateRank(f); trivial }
       ListSpecs.forallContained(heap, boundedRankFuncOnHeap, f)
-      weakenBoundOnRank(f, heap)
+      OurListSpecs.weakenBoundOnListSize(heap, e => !isRoot(e), f.rank)
+      // weakenBoundOnRank(f, heap)
       findInner(addr)
     }.ensuring(y =>
       nodeAtIsRoot(y) && isValidAddr(y) && nodeAt(addr).rank <= nodeAt(y).rank
@@ -392,28 +390,10 @@ object UnionFindList {
       require(isValidAddr(a1) && isValidAddr(a2))
       val r1 = find(a1)
       val r2 = find(a2)
-      // findReturnsRoot(a1) provided by find
-      // findReturnsRoot(a2)
       assert(nodeAtIsRoot(r1) && nodeAtIsRoot(r2))
-      // findReturnsValidAddr(a1) provided by find
-      // findReturnsValidAddr(a2)
       assert(isValidAddr(r1) && isValidAddr(r2))
 
       link(r1, r2)
-    }
-
-    // TODO bye bye findRec
-    def findRec(addr: BigInt, fuel: BigInt): BigInt = {
-      require(fuel >= 0)
-      decreases(fuel)
-      if fuel == 0 then -1
-      else if isValidAddr(addr) then
-        nodeAt(addr) match {
-          case Child(addr, value, _, parentAddr) =>
-            findRec(parentAddr, fuel - 1)
-          case Root(ad, value, rank) => addr
-        }
-      else addr
     }
 
     def findReturnsRoot(addr: BigInt): Unit = {
@@ -479,41 +459,6 @@ object UnionFindList {
         && ((equiv(a1, b) || equiv(a2, b)) || find(b) != union(a1, a2)._2)
     )
 
-    // Invariants II and IV imply invariant V
-    def rankIsBoundedBySize: Unit = {
-      assert(heap.forall(rankFunc(heap)))
-      assert(heap.forall(addrFunc(heap)))
-
-      def rec(l: List[Node[T]]): Unit = {
-        require(l.forall(rankFunc(heap)))
-        require(l.forall(addrFunc(heap)))
-        decreases(l)
-        l match {
-          case Nil()      => ()
-          case Cons(h, t) =>
-            val repAddr = find(h.addr)
-            val repNode = nodeAt(repAddr)
-            assert(nodeAt(h.addr).rank <= nodeAt(repAddr).rank)
-            h == nodeAt(h.addr) because {
-              assert(heap.contains(h))
-              assert(heap.forall(addrFuncOnHeap))
-              ListSpecs.forallContained(heap, addrFuncOnHeap, h)
-              addrAndHeapMatch(h, heap)
-            }
-            assert(h.rank <= repNode.rank)
-            assert(isRoot(repNode))
-            rankFunc(heap)(repNode) because {
-              assert(heap.contains(h))
-              assert(heap.forall(rankFuncOnHeap))
-              ListSpecs.forallContained(heap, rankFuncOnHeap, h)
-              repNode.rank <= heap.size
-            }
-            rec(t)
-        }
-      }.ensuring { _ => l.forall(boundedFunc(heap)) }
-
-      rec(heap)
-    }.ensuring { _ => heap.forall(boundedFuncOnHeap) }
   }
 
 }

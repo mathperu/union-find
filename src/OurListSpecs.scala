@@ -371,4 +371,10 @@ object OurListSpecs {
     else rangeAtIndexPlusStartIsIndexPlusStart(start + 1, until, index - 1)
   }.ensuring(_ => List.range(start, until)(index) == start + index)
 
+  // Filter lemma
+
+  def weakenBoundOnListSize[T](l: List[T], p: T => Boolean, x: BigInt): Unit = {
+    require(x <= l.filter(p).size)
+  }.ensuring { _ => x <= l.size }
+
 }

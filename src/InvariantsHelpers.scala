@@ -199,7 +199,8 @@ object InvariantsHelpers {
   }.ensuring { _ => (l :+ n).forall(rankFunc(l :+ n)) }
 
   def rankInvUpdate[T](l: List[Node[T]], addr: BigInt, n: Node[T]): Unit = {
-    require(l.forall(rankFunc(l)) && rankFunc(l)(n))
+    require(l.forall(rankFunc(l)))
+    require(rankFunc(l)(n))
     require(0 <= addr && addr < l.size)
     require(isRoot(l(addr)))
     require(l(addr).rank <= n.rank)

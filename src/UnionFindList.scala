@@ -322,49 +322,49 @@ object UnionFindList {
               val newUF = this.set(a2, newNode2)
               (newUF, a1)
             else
-              val newNode1 = Child(a1, v1, r1, a2)
-              val newNode2 = Root(a2, v2, r2 + 1)
-              // assert(r2 + 1 <= heap.size)
-              // precond 5 & 6
-              assert(this.heap.updated(a1, newNode1) == newUF1.heap)
-              OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
-                heap,
-                a1,
-                newNode1,
-                isRoot,
-                a2
-              )
-              // assert(isRoot(newUF1.heap(a2)))
+              // val newNode1 = Child(a1, v1, r1, a2)
+              // val newNode2 = Root(a2, v2, r2 + 1)
+              // // assert(r2 + 1 <= heap.size)
+              // // precond 5 & 6
+              // assert(this.heap.updated(a1, newNode1) == newUF1.heap)
+              // OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
+              //   heap,
+              //   a1,
+              //   newNode1,
+              //   isRoot,
+              //   a2
+              // )
+              // // assert(isRoot(newUF1.heap(a2)))
 
-              OurListSpecs.updatedFilterSizeDecreases(
-                heap,
-                a1,
-                newNode1,
-                e => !isRoot(e)
-              )
-              /* assert(
-                this.heap
-                  .filter(e => !isRoot(e))
-                  .size < newUF1.heap.filter(e => !isRoot(e)).size
-              ) */
-              // assert(r2 < newUF1.heap.filter(e => !isRoot(e)).size)
-              val newUF2 = this.set(a2, newNode2)
-              OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
-                heap,
-                a2,
-                newNode2,
-                isRoot,
-                a1
-              )
-              OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
-                heap,
-                a2,
-                newNode2,
-                e => e.rank == newNode1.rank,
-                a1
-              )
-              val newUF1 = newUF2.set(a1, newNode1)
-              (newUF1, a2) */
+              // OurListSpecs.updatedFilterSizeDecreases(
+              //   heap,
+              //   a1,
+              //   newNode1,
+              //   e => !isRoot(e)
+              // )
+              // /* assert(
+              //   this.heap
+              //     .filter(e => !isRoot(e))
+              //     .size < newUF1.heap.filter(e => !isRoot(e)).size
+              // ) */
+              // // assert(r2 < newUF1.heap.filter(e => !isRoot(e)).size)
+              // val newUF2 = this.set(a2, newNode2)
+              // OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
+              //   heap,
+              //   a2,
+              //   newNode2,
+              //   isRoot,
+              //   a1
+              // )
+              // OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
+              //   heap,
+              //   a2,
+              //   newNode2,
+              //   e => e.rank == newNode1.rank,
+              //   a1
+              // )
+              // val newUF1 = newUF2.set(a1, newNode1)
+              // // (newUF1, a2)
 
               (setTwo(a1, Root(a1, v1, r1 + 1), a2, Child(a2, v2, r2, a1)), a1)
 
@@ -396,6 +396,9 @@ object UnionFindList {
       require(parentFuncOnHeap(r))
       require(parentFuncOnHeap(c))
 
+      // for invariant IV
+      require(heap(ac).rank == c.rank)
+
       // for invariant VI
       require(r.rank == heap(ar).rank + 1)
       require(isRoot(heap(ar))) // !isRoot(r) || isRoot(heap(ar))
@@ -423,7 +426,35 @@ object UnionFindList {
       parentInvUpdate(heap, ar, r)
       parentInvUpdate(newHeapRootFirstTemp, ac, c)
       // Invariant IV
-      assert(newHeapRootFirst.forall(rankFunc(newHeapRootFirst)))
+      // val newNode1 = Child(a1, v1, r1, a2)
+      // val newNode2 = Root(a2, v2, r2 + 1)
+      // val newUF2 = this.set(a2, newNode2)
+      OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
+        heap,
+        ar,
+        r,
+        isRoot,
+        ac
+      )
+      // ListSpecs.forallContained(
+      //   heap,
+      //   addrFuncOnHeap,
+      //   c
+      // )
+      // assert(heap(ac) == c) // inv
+      OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
+        heap,
+        ar,
+        r,
+        e => e.rank == c.rank,
+        ac
+      )
+      // to be proved for rankinvupdate
+      assert(rankFunc(newHeapRootFirstTemp)(c)) // inv
+      assert(newHeapRootFirstTemp.forall(rankFunc(newHeapRootFirstTemp)))
+      assert(newHeapRootFirstTemp.forall(addrFunc(newHeapRootFirstTemp)))
+
+      rankInvUpdate(newHeapRootFirstTemp, ac, c)
 
       // Add c first and check invariant VI
 

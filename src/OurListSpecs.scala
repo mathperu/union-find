@@ -224,6 +224,27 @@ object OurListSpecs {
     }
   }.ensuring { _ => l.updated(addr, elem)(i) == l(i) }
 
+  def updateOrderDoesNotMatter[T](
+      l: List[T],
+      i1: BigInt,
+      e1: T,
+      i2: BigInt,
+      e2: T
+  ): Unit = {
+    require(0 <= i1 && i1 < l.size)
+    require(0 <= i2 && i2 < l.size)
+    require(i1 != i2)
+
+    l match {
+      case Nil()      => ()
+      case Cons(h, t) =>
+        if i1 == 0 || i2 == 0 then ()
+        else updateOrderDoesNotMatter(t, i1 - 1, e1, i2 - 1, e2)
+    }
+  }.ensuring { _ =>
+    l.updated(i1, e1).updated(i2, e2) == l.updated(i2, e2).updated(i1, e1)
+  }
+
   // Slice lemmas
 
   def sliceCons[T](l: List[T], from: BigInt, until: BigInt): Unit = {

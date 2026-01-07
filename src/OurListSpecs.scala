@@ -115,7 +115,7 @@ object OurListSpecs {
 
   }.ensuring { _ => p(l.updated(addr, elem)(index)) }
 
-  def updatedFilterSizeDecreases[T](
+  def updatedFilterSizeIncreases2[T](
       l: List[T],
       addr: BigInt,
       elem: T,
@@ -129,7 +129,7 @@ object OurListSpecs {
       case Nil()      => ()
       case Cons(h, t) =>
         if addr == 0 then ()
-        else updatedFilterSizeDecreases(t, addr - 1, elem, p)
+        else updatedFilterSizeIncreases(t, addr - 1, elem, p)
     }
   }.ensuring(_ => l.updated(addr, elem).filter(p).size == l.filter(p).size + 1)
 

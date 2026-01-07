@@ -86,9 +86,10 @@ object UnionFindList {
       0 <= addr && addr < size
 
     @inline
-    def nodeAt(addr: BigInt): Node[T] =
+    def nodeAt(addr: BigInt): Node[T] = {
       require(isValidAddr(addr))
       heap(addr)
+    }.ensuring(n => heap.contains(n))
 
     def getParentAddr(n: Node[T]): BigInt =
       n match {
@@ -275,8 +276,10 @@ object UnionFindList {
       instantiateRank(n1)
       instantiateRank(n2)
 
-      assert(boundedRankFuncOnHeap(n1))
-      assert(boundedRankFuncOnHeap(n2))
+      ListSpecs.forallContained(heap, boundedRankFuncOnHeap, n1)
+      // assert(boundedRankFuncOnHeap(n1))
+      ListSpecs.forallContained(heap, boundedRankFuncOnHeap, n2)
+      // assert(boundedRankFuncOnHeap(n2))
 
       if a1 == a2 then (this, a1)
       else
@@ -293,8 +296,8 @@ object UnionFindList {
               // assert(r2 <= heap.filter(e => !isRoot(e)).size)
               val newUF = this.set(a2, newNode2)
               (newUF, a1)
-            else
-              val newNode1 = Child(a1, v1, r1, a2)
+            else // r1 == r2
+              /* val newNode1 = Child(a1, v1, r1, a2)
               // assert(r1 <= heap.filter(e => !isRoot(e)).size)
               val newUF1 = this.set(a1, newNode1)
               val newNode2 = Root(a2, v2, r2 + 1)
@@ -323,12 +326,100 @@ object UnionFindList {
               ) */
               // assert(r2 < newUF1.heap.filter(e => !isRoot(e)).size)
               val newUF2 = newUF1.set(a2, newNode2)
-              (newUF2, a2)
+              (newUF2, a2) */
+
+              (setTwo(a1, Root(a1, v1, r1 + 1), a2, Child(a2, v2, r2, a1)), a1)
 
           case (_, _) =>
             assert(nodeAtIsRoot(a1) && nodeAtIsRoot(a2))
             (this, BigInt(-1))
         }
+    }
+
+    def setTwo(
+        ar: BigInt,
+        r: Node[T],
+        ac: BigInt,
+        c: Node[T]
+    ): UF[T] = {
+      require(isValidAddr(ar))
+      require(isValidAddr(r.addr))
+      require(r.addr == ar)
+      require(isRoot(r))
+
+      require(isValidAddr(ac))
+      require(isValidAddr(c.addr))
+      require(c.addr == ac)
+      require(!isRoot(c))
+
+      require(ar != ac)
+
+      // for invariant I
+      require(parentFuncOnHeap(r))
+      require(parentFuncOnHeap(c))
+
+      // for invariant VI
+      require(r.rank == heap(ar).rank + 1)
+      require(isRoot(heap(ar))) // !isRoot(r) || isRoot(heap(ar))
+      require(boundedRankFuncOnHeap(c))
+      require(isRoot(heap(ac)))
+
+      // Add r first and check invariants I to IV
+
+      val newHeapRootFirstTemp = heap.updated(ar, r)
+      val newHeapRootFirst = newHeapRootFirstTemp.updated(ac, c)
+      // Invariant III
+      OurListSpecs.mapAtIndex(heap, ar, _.addr)
+      OurListSpecs.rangeAtIndexPlusStartIsIndexPlusStart(0, heap.size, ar)
+      OurListSpecs.mapUpdate(heap, ar, r, _.addr)
+      OurListSpecs.mapAtIndex(newHeapRootFirstTemp, ac, _.addr)
+      OurListSpecs.rangeAtIndexPlusStartIsIndexPlusStart(
+        0,
+        newHeapRootFirstTemp.size,
+        ac
+      )
+      OurListSpecs.mapUpdate(newHeapRootFirstTemp, ac, c, _.addr)
+      // Invariant II
+      rangeInvImpliesAddrInv(newHeapRootFirst)
+      // Invariant I
+      parentInvUpdate(heap, ar, r)
+      parentInvUpdate(newHeapRootFirstTemp, ac, c)
+      // Invariant IV
+      assert(newHeapRootFirst.forall(rankFunc(newHeapRootFirst)))
+
+      // Add c first and check invariant VI
+
+      val newHeapChildFirstTemp = heap.updated(ac, c)
+      val newHeapChildFirst = newHeapRootFirstTemp.updated(ar, r)
+      // Invariant VI
+      OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
+        heap,
+        ac,
+        c,
+        isRoot,
+        ar
+      )
+
+      OurListSpecs.updatedFilterSizeIncreases2(heap, ac, c, e => !isRoot(e))
+      ListSpecs.forallContained(
+        heap,
+        e => e.rank <= heap.filter(e => !isRoot(e)).size,
+        heap(ar)
+      )
+      assert(heap(ar).rank <= heap.filter(e => !isRoot(e)).size)
+      assert(
+        newHeapChildFirstTemp.filter(e => !isRoot(e)).size == heap
+          .filter(e => !isRoot(e))
+          .size + 1
+      )
+      assert(boundedRankFunc(newHeapChildFirstTemp)(r))
+      boundedRankUpdate(heap, ac, c)
+      boundedRankUpdate(newHeapChildFirstTemp, ar, r)
+
+      // Order of operations does not matter
+      OurListSpecs.updateOrderDoesNotMatter(heap, ar, r, ac, c)
+
+      UF(newHeapRootFirst)
     }
 
     def union(a1: BigInt, a2: BigInt): (UF[T], BigInt) = {

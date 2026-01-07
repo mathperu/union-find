@@ -452,6 +452,8 @@ object UnionFindList {
       // to be proved for rankinvupdate
       assert(rankFunc(newHeapRootFirstTemp)(c)) // inv
       assert(newHeapRootFirstTemp.forall(rankFunc(newHeapRootFirstTemp)))
+
+      rangeInvImpliesAddrInv(newHeapRootFirstTemp)
       assert(newHeapRootFirstTemp.forall(addrFunc(newHeapRootFirstTemp)))
 
       rankInvUpdate(newHeapRootFirstTemp, ac, c)
@@ -476,6 +478,7 @@ object UnionFindList {
         heap(ar)
       )
       assert(heap(ar).rank <= heap.filter(e => !isRoot(e)).size)
+      // OurListSpecs.updatedFilterSizeDecreases()
       assert(
         newHeapChildFirstTemp.filter(e => !isRoot(e)).size == heap
           .filter(e => !isRoot(e))

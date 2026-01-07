@@ -153,24 +153,6 @@ object OurListSpecs {
     }
   }.ensuring { _ => p(l.updated(addr, elem)(i1), l.updated(addr, elem)(i2)) }
 
-  def updatedFilterSizeDecreases[T](
-      l: List[T],
-      addr: BigInt,
-      elem: T,
-      p: T => Boolean
-  ): Unit = {
-    require(0 <= addr && addr < l.size)
-    require(!p(l(addr)))
-    require(p(elem))
-
-    l match {
-      case Nil()      => ()
-      case Cons(h, t) =>
-        if addr == 0 then ()
-        else updatedFilterSizeDecreases(t, addr - 1, elem, p)
-    }
-  }.ensuring(_ => l.updated(addr, elem).filter(p).size == l.filter(p).size + 1)
-
   def updatedFilterSizeIncreases[T](
       l: List[T],
       addr: BigInt,
@@ -178,7 +160,7 @@ object OurListSpecs {
       p: T => Boolean
   ): Unit = {
     require(0 <= addr && addr < l.size)
-    require(p(elem))
+    require(p(elem) || !p(l(addr)))
 
     l match {
       case Nil()      => ()
@@ -196,6 +178,7 @@ object OurListSpecs {
   ): Unit = {
     require(0 <= addr && addr < l.size)
     require(!p(l(addr)))
+    require(p(elem))
 
     l match {
       case Nil()      => ()
@@ -203,7 +186,7 @@ object OurListSpecs {
         if addr == 0 then ()
         else updatedFilterSizeIncreases2(t, addr - 1, elem, p)
     }
-  }.ensuring(_ => l.updated(addr, elem).filter(p).size >= l.filter(p).size)
+  }.ensuring(_ => l.updated(addr, elem).filter(p).size == l.filter(p).size + 1)
 
   def updatePreservesIndices[T](
       l: List[T],

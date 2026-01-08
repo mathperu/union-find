@@ -181,6 +181,78 @@ object UnionFindList {
       (UF(newHeap), newNode)
     }
 
+    // helper to prove unionMergedTheSets
+    def buildParentChain(addr: BigInt): List[Node[T]] = {
+      require(isValidAddr(addr))
+
+      // preconds for nodeAt(addr).rank enable proof for non-negative measure
+      def parentChainInner(addr: BigInt): List[Node[T]] = {
+        require(isValidAddr(addr))
+        val f = nodeAt(addr)
+        require(f.rank >= 0)
+        require(f.rank <= heap.size)
+        decreases(heap.size - f.rank)
+
+        nodeAt(addr) match {
+          case c @ Child(addr, value, dist, parentAddr) => {
+            ListSpecs.forallContained(heap, parentFuncOnHeap, f)
+            val parent = nodeAt(parentAddr)
+            check(rankInv)
+
+            ListSpecs.forallContained(heap, rankFuncOnHeap, f)
+            instantiateRank(parent)
+            check(parent.rank >= 0)
+
+            ListSpecs.forallContained(heap, boundedRankFuncOnHeap, parent)
+            OurListSpecs.weakenBoundOnListSize(
+              heap,
+              e => !isRoot(e),
+              parent.rank
+            )
+            check(parent.rank <= size)
+
+            // TODO fix here !
+            val chain = parentChainInner(parentAddr)
+            // need to re-check here after recursive call
+            check(chain.head.addr == find(addr))
+            OurListSpecs.snocMaintainsPredOnHead(
+              chain,
+              c,
+              _.addr == find(addr)
+            )
+            check((chain :+ c).head.addr == find(addr))
+            chain :+ c
+          }
+          case r @ Root(addr, value, rank) => {
+            instantiateRank(r)
+            ListSpecs.forallContained(heap, addrFuncOnHeap, r)
+            check(r.addr == find(addr)) // this passes
+            val li = List[Node[T]](r)
+            check(li.head.addr == find(addr))
+            li
+          }
+        }
+      }.ensuring(l =>
+        nodeAtIsRoot(l.head.addr) && isValidAddr(l.head.addr) &&
+          nodeAt(addr).rank <= nodeAt(l.head.addr).rank &&
+          l.head.addr == find(addr)
+      )
+
+      // Invoke invariants on Node[T]
+      val f = nodeAt(addr)
+      instantiateRank(f)
+      ListSpecs.forallContained(heap, boundedRankFuncOnHeap, f)
+      OurListSpecs.weakenBoundOnListSize(heap, e => !isRoot(e), f.rank)
+
+      val chain = parentChainInner(addr)
+      assert(chain.head.addr == find(addr))
+      chain
+    }.ensuring(l =>
+      nodeAtIsRoot(l.head.addr) && isValidAddr(l.head.addr)
+        && nodeAt(addr).rank <= nodeAt(l.head.addr).rank
+        && l.head.addr == find(addr)
+    )
+
     // no path compression
     // provide address and finds parent's address
     def find(addr: BigInt): BigInt = {
@@ -201,7 +273,6 @@ object UnionFindList {
             check(rankInv)
 
             ListSpecs.forallContained(heap, rankFuncOnHeap, f)
-
             instantiateRank(parent)
             check(parent.rank >= 0)
 
@@ -227,9 +298,10 @@ object UnionFindList {
 
       // Invoke invariants on Node[T]
       val f = nodeAt(addr)
-      (f.rank >= 0) because { instantiateRank(f); trivial }
+      instantiateRank(f)
       ListSpecs.forallContained(heap, boundedRankFuncOnHeap, f)
       OurListSpecs.weakenBoundOnListSize(heap, e => !isRoot(e), f.rank)
+
       findInner(addr)
     }.ensuring(y =>
       nodeAtIsRoot(y) && isValidAddr(y) && nodeAt(addr).rank <= nodeAt(y).rank

@@ -100,6 +100,57 @@ object UnionFindSpecs {
       uf.buildParentChain(b).tail == newUF.buildParentChain(b).tail
     })
 
+    // def parentChainRelation(
+    //     a1: BigInt,
+    //     a2: BigInt,
+    //     b: BigInt
+    // ): Unit = {
+    //   require(uf.isValidAddr(a1))
+    //   require(uf.isValidAddr(a2))
+    //   require(uf.isValidAddr(b))
+
+    //   require(uf.nodeAtIsRoot(a1))
+    //   require(uf.nodeAtIsRoot(a2))
+
+    //   val parentsBefore = uf.buildParentChain(b)
+    //   val (newUF, newRoot) = uf.link(a1, a2)
+    //   val parentsAfter = newUF.buildParentChain(b)
+
+    //   assert(parentsBefore.content.subsetOf(parentsAfter.content))
+    // }.ensuring(_ => {
+    //   val (newUF, newRoot) = uf.link(a1, a2)
+    //   uf.buildParentChain(b).content.subsetOf(newUF.buildParentChain(b).content)
+    // })
+
+    def parentChainSublistImpliesFind(
+        a1: BigInt,
+        a2: BigInt,
+        b: BigInt
+    ): Unit = {
+      require(uf.isValidAddr(a1))
+      require(uf.isValidAddr(a2))
+      require(uf.isValidAddr(b))
+
+      require(uf.nodeAtIsRoot(a1))
+      require(uf.nodeAtIsRoot(a2))
+      require(
+        uf.buildParentChain(b)
+          .content
+          .subsetOf(uf.link(a1, a2)._1.buildParentChain(b).content)
+      )
+
+      // val parentsBefore = uf.buildParentChain(b)
+      // val (newUF, newRoot) = uf.link(a1, a2)
+      // val parentsAfter = newUF.buildParentChain(b)
+    }.ensuring(_ => {
+      val (newUF, newRoot) = uf.link(a1, a2)
+      val parentsBefore = uf.buildParentChain(b)
+      val parentsAfter = newUF.buildParentChain(b)
+
+      parentsAfter.head.addr == newRoot
+      // uf.find(b) == newUF.find(b)
+    })
+
     def linkPreservesOneRoot(
         a1: BigInt,
         a2: BigInt,
@@ -126,8 +177,9 @@ object UnionFindSpecs {
             // assert(newRoot == a2)
             // assert(newUF.heap.contains(uf.nodeAt(b)))
             val newChild = Child(a1, n1.value, n1.rank, a2)
-            // assert(newUF.heap == uf.heap.updated(a1, newChild))
-            // updatedListPreservesFind(a2, newUF.nodeAt(a2), b)
+            assert(
+              newUF.heap == uf.heap.updated(a1, newChild)
+            ) // this passes
 
             assert(
               parentsBefore.head.addr == a1 || parentsBefore.head.addr == a2

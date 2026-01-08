@@ -52,6 +52,24 @@ object UnionFindList {
     val size: BigInt = heap.size
     val domain: List[T] = heap.map(n => n.value)
 
+    val getAncestors(l: List[Node[T]], n: Node[T]): List[Node[T]] =
+      require(l.contains(n))
+      require(l.forall(parentFunc(l)))
+      def inner(l: List[Node[T]], a: addr): List[BigInt] =
+        require(isValidAddr(addr))
+        require(l.forall(parentFunc(l)))
+        n match {
+          case Child(a, _, _, pa) => Cons(a, getAncestors(l, pa))
+          case Root(a, _, _) => Cons(a, Nil())
+        }
+
+      inner(l, n.addr) match {
+        case Nil() => Nil()
+        case Cons(nAddr, ancestors) => ancestors
+      }
+      
+    val ancestors: (n: Node[T]) => getAncestors(heap, n)
+
     // Invariant I: parent address is always in the heap
     val parentFuncOnHeap = parentFunc(heap)
     require(heap.forall(parentFuncOnHeap))

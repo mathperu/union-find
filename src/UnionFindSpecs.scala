@@ -44,10 +44,8 @@ object UnionFindSpecs {
 
     def linkReturnsARootOfInput(a1: BigInt, a2: BigInt): Unit = {
       require(
-        uf.isValidAddr(a1) && uf.isValidAddr(a2) && uf.nodeAtIsRoot(a1) && uf
-          .nodeAtIsRoot(
-            a2
-          )
+        uf.isValidAddr(a1) && uf.isValidAddr(a2) &&
+          uf.nodeAtIsRoot(a1) && uf.nodeAtIsRoot(a2)
       )
     }.ensuring(_ => uf.link(a1, a2)._2 == a1 || uf.link(a1, a2)._2 == a2)
 
@@ -56,6 +54,21 @@ object UnionFindSpecs {
     }.ensuring(_ =>
       uf.union(a1, a2)._2 == uf.find(a1) || uf.union(a1, a2)._2 == uf.find(a2)
     )
+
+    def unionPreservesAdressValidity(
+        a1: BigInt,
+        a2: BigInt,
+        b: BigInt
+    ): Unit = {
+      require(uf.isValidAddr(a1))
+      require(uf.isValidAddr(a2))
+      require(uf.isValidAddr(b))
+    }.ensuring(_ =>
+      val (newUF, newRoot) = uf.union(a1, a2)
+      newUF.isValidAddr(b)
+    )
+
+    // non-verified :
 
     def updatedListPreservesFind(
         rootAddr: BigInt,
@@ -182,6 +195,137 @@ object UnionFindSpecs {
       newUF.find(b) != a1 && newUF.find(b) != a2
     })
 
+    def lemma(r1: BigInt, r2: BigInt, b: BigInt): Unit = {
+      require(uf.isValidAddr(r1))
+      require(uf.isValidAddr(r2))
+      require(uf.isValidAddr(b))
+      require(uf.nodeAtIsRoot(r1))
+      require(uf.nodeAtIsRoot(r2))
+      require(uf.union(r1, r2)._2 == r1)
+      require(uf.equiv(r1, b))
+    }.ensuring(_ =>
+      val (newUF, newRoot) = uf.union(r1, r2)
+      newUF.find(b) == r1
+    )
+
+    def hasSameRootAsAncestors(a1: BigInt, a2: BigInt): Unit = {
+      require(uf.isValidAddr(a1))
+      require(uf.isValidAddr(a2))
+      require(uf.ancestors(a1).contains(a2))
+    }.ensuring(_ => uf.equiv(a1, a2))
+
+    def unionOnRootsIsUnionOnAny(
+        a1: BigInt,
+        a2: BigInt,
+        r1: BigInt,
+        r2: BigInt
+    ): Unit = {
+      require(uf.isValidAddr(a1))
+      require(uf.isValidAddr(a2))
+      require(uf.isValidAddr(r1))
+      require(uf.isValidAddr(r2))
+      require(uf.find(a1) == r1)
+      require(uf.find(a2) == r2)
+    }.ensuring(_ => uf.union(a1, a2) == uf.union(r1, r2))
+
+    def unionMergedTheSets1(a1: BigInt, a2: BigInt, b: BigInt): Unit = {
+      require(uf.isValidAddr(a1))
+      require(uf.isValidAddr(a2))
+      require(uf.isValidAddr(b))
+      require(uf.equiv(a1, b) || uf.equiv(a2, b))
+
+      val r1 = uf.find(a1)
+      val r2 = uf.find(a2)
+      val rb = uf.find(b)
+      val (newUF, newRoot) = uf.union(a1, a2)
+
+      unionPreservesAdressValidity(a1, a2, b)
+      unionPreservesAdressValidity(a1, a2, a1)
+      unionPreservesAdressValidity(a1, a2, a2)
+      unionPreservesAdressValidity(a1, a2, r1)
+      unionPreservesAdressValidity(a1, a2, r2)
+
+      unionOnRootsIsUnionOnAny(a1, a2, r1, r2)
+
+      if uf.equiv(a1, b) then
+        unionReturnsARootOfInput(a1, a2)
+        assert(newRoot == r1 || newRoot == r2)
+        assert(rb == r1)
+        if newRoot == r1 then
+          assert(uf.union(r1, r2)._1 == newUF)
+          lemma(r1, r2, b)
+          assert(rb == newUF.find(b))
+          assert(newUF.find(b) == r1)
+          assert(newUF.find(b) == newRoot)
+        else
+          assert(newRoot == r2)
+          assert(newUF.ancestors(b).contains(r1))
+          newUF.nodeAt(r1) match
+            case Root(_, _, _)      => ()
+            case Child(_, _, _, pa) => assert(pa == r2)
+
+          assert(newUF.find(a1) == newRoot)
+          assert(newUF.find(b) == newUF.find(a1))
+          assert(newUF.find(b) == newRoot)
+      else if uf.equiv(a2, b) then
+        unionReturnsARootOfInput(a1, a2)
+        assert(newRoot == uf.find(a1) || newRoot == uf.find(a2))
+        assert(uf.find(b) == uf.find(a2))
+        if newRoot == uf.find(a2) then assert(newUF.find(b) == newRoot)
+        else
+          assert(newRoot == uf.find(a1))
+          assert(newUF.find(a2) == newRoot)
+          assert(newUF.find(b) == newUF.find(a2))
+          assert(newUF.find(b) == newRoot)
+
+    }.ensuring(_ =>
+      val (newUF, newRoot) = uf.union(a1, a2)
+      unionPreservesAdressValidity(a1, a2, b)
+      newUF.find(b) == newRoot
+    )
+
+    def unionPreservesRootForElementsInNeitherSets(
+        a1: BigInt,
+        a2: BigInt,
+        b: BigInt
+    ): Unit = {
+      require(uf.isValidAddr(a1))
+      require(uf.isValidAddr(a2))
+      require(uf.isValidAddr(b))
+      require(!uf.equiv(a1, b) && !uf.equiv(a2, b))
+
+      val r1 = uf.find(a1)
+      val r2 = uf.find(a2)
+      val (newUF, newRoot) = uf.union(a1, a2)
+
+      val bRoot = uf.find(b)
+
+      unionPreservesAdressValidity(a1, a2, b)
+
+    }.ensuring(_ =>
+      val (newUF, newRoot) = uf.union(a1, a2)
+      unionPreservesAdressValidity(a1, a2, b)
+      newUF.find(b) == uf.find(b)
+    )
+
+    def unionMergedTheSets2(a1: BigInt, a2: BigInt, b: BigInt): Unit = {
+      require(uf.isValidAddr(a1))
+      require(uf.isValidAddr(a2))
+      require(uf.isValidAddr(b))
+      require(!uf.equiv(a1, b) && !uf.equiv(a2, b))
+
+      val r1 = uf.find(a1)
+      val r2 = uf.find(a2)
+      val (newUF, newRoot) = uf.union(a1, a2)
+      unionReturnsARootOfInput(a1, a2)
+      unionPreservesAdressValidity(a1, a2, b)
+      unionPreservesRootForElementsInNeitherSets(a1, a2, b)
+
+    }.ensuring(_ =>
+      val (newUF, newRoot) = uf.union(a1, a2)
+      newUF.find(b) != newRoot
+    )
+
     // if b is represented by either a1 or a2 then after union b it is represented by their union
     def unionMergedTheSets(a1: BigInt, a2: BigInt, b: BigInt): Unit = {
       require(uf.isValidAddr(a1))
@@ -192,16 +336,30 @@ object UnionFindSpecs {
       val r2 = uf.find(a2)
       val (newUF, newRoot) = uf.union(a1, a2)
 
-      if uf.equiv(a1, b) || uf.equiv(a2, b) then
-        // assert(uf.nodeAtIsRoot(r1) || uf.nodeAtIsRoot(r2))
-        // check(uf.find(b) == r1 || uf.find(b) == r2)
-        linkPreservesOneRoot(r1, r2, b)
-        // check(newRoot == r1 || newRoot == r2)
-        // check(newUF.find(b) == r1 || newUF.find(b) == r2)
+      if uf.equiv(a1, b) then
+        unionReturnsARootOfInput(a1, a2)
+        assert(newRoot == uf.find(a1) || newRoot == uf.find(a2))
+        assert(uf.find(b) == uf.find(a1))
+        if newRoot == uf.find(a1) then ()
+        else
+          assert(newRoot == uf.find(a2))
+          assert(newUF.find(a1) == newRoot)
+          assert(newUF.find(b) == newUF.find(a1))
+      else if uf.equiv(a2, b) then ()
+      // assert(uf.nodeAtIsRoot(r1) || uf.nodeAtIsRoot(r2))
+      // check(uf.find(b) == r1 || uf.find(b) == r2)
+      /* linkPreservesOneRoot(r1, r2, b)
+        unionReturnsARootOfInput(a1, a2) */
+
+      // check(newRoot == r1 || newRoot == r2)
+      // check(newUF.find(b) == r1 || newUF.find(b) == r2)
       else
+        val bRoot = uf.find(b)
+        assert(bRoot != r1 && bRoot != r2)
+        unionReturnsARootOfInput(a1, a2)
         // check(!uf.equiv(a1, b) && !uf.equiv(a2, b))
         // check(uf.find(b) != r1 && uf.find(b) != r2)
-        linkNeitherRoot(r1, r2, b)
+        // linkNeitherRoot(r1, r2, b)
         // assert(newUF.find(b) != newRoot)
 
       // a1 and a2 in same set => their roots are the same

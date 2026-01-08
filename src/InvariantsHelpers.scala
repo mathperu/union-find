@@ -201,14 +201,12 @@ object InvariantsHelpers {
   def rankInvUpdate[T](l: List[Node[T]], addr: BigInt, n: Node[T]): Unit = {
     require(l.forall(rankFunc(l)))
     require(rankFunc(l)(n))
-    require(0 <= addr && addr < l.size)
-    require(isRoot(l(addr)))
-    require(l(addr).rank <= n.rank)
     require(l.forall(addrFunc(l)))
-    require(isRoot(n) || l(addr).rank == n.rank)
+    require(0 <= addr && addr < l.size)
+    require(isRoot(l(addr)) ==> (l(addr).rank <= n.rank))
+    require(isRoot(l(addr)) ==> (isRoot(n) || l(addr).rank == n.rank))
+    require(!isRoot(l(addr)) ==> (!isRoot(n) && l(addr).rank == n.rank))
 
-    // TODO allow C -> C replacement for path compression
-    // this lemma only allows R -> R and R -> C replacement for union by rank
     def rankInvUpdateElem[T](
         l: List[Node[T]],
         n: Node[T],
@@ -216,89 +214,13 @@ object InvariantsHelpers {
         e: Node[T]
     ): Unit = {
       require(0 <= addr && addr < l.size)
-      require(isRoot(l(addr)))
-      require(rankFunc(l)(e))
-      require(l(addr).rank <= n.rank)
+      require(l.contains(e))
       require(parentIsInHeap(e, l))
       require(addrFunc(l)(e))
-      require(l.contains(e))
-
-      e match
-        case Root(a, v, rank)          => ()
-        case Child(a, v, rank, parent) =>
-          if parent == addr then ()
-          else if a == addr then ()
-          else
-            OurListSpecs.predicatePreservedOnNonUpdatedPair(
-              l,
-              a,
-              parent,
-              addr,
-              n,
-              (c: Node[T], p: Node[T]) => c.rank < p.rank
-            )
-
-            OurListSpecs.updatePreservesIndices(l, addr, n, a)
-    }.ensuring(rankFunc(l.updated(addr, n))(e))
-
-    def rankInvUpdateRec(
-        heap: List[Node[T]],
-        addr: BigInt,
-        l: List[Node[T]],
-        n: Node[T]
-    ): Unit = {
-      require(0 <= addr && addr < heap.size)
-      require(l.forall(rankFunc(heap)) && rankFunc(heap)(n))
-      require(isRoot(heap(addr)))
-      require(heap(addr).rank <= n.rank)
-      require(l.forall(addrFunc(heap)))
-
-      l match {
-        case Nil()      =>
-        case Cons(h, t) =>
-          rankInvUpdateElem(heap, n, addr, h)
-          rankInvUpdateRec(heap, addr, t, n)
-      }
-    }.ensuring(l.forall(rankFunc(heap.updated(addr, n))))
-
-    n match
-      case Root(a, _, _) =>
-        assert(rankFunc(l.updated(addr, n))(n))
-      case Child(a, _, r, p) =>
-        OurListSpecs.updatePreservesIndices(l, addr, n, p)
-        assert(rankFunc(l.updated(addr, n))(n))
-
-    rankInvUpdateRec(l, addr, l, n)
-    OurListSpecs.forallUpdate(l, addr, n, rankFunc(l.updated(addr, n)))
-  }.ensuring { _ =>
-    (l.updated(addr, n)).forall(rankFunc(l.updated(addr, n)))
-  }
-
-  def rankInvUpdate2[T](l: List[Node[T]], addr: BigInt, n: Node[T]): Unit = {
-    require(l.forall(rankFunc(l)))
-    require(rankFunc(l)(n))
-    require(0 <= addr && addr < l.size)
-    require(!isRoot(l(addr)))
-    require(l.forall(addrFunc(l)))
-    require(!isRoot(n))
-    require(l(addr).rank == n.rank)
-
-    // TODO allow C -> C replacement for path compression
-    // this lemma only allows R -> R and R -> C replacement for union by rank
-    def rankInvUpdateElem[T](
-        l: List[Node[T]],
-        n: Node[T],
-        addr: BigInt,
-        e: Node[T]
-    ): Unit = {
-      require(0 <= addr && addr < l.size)
-      require(!isRoot(l(addr)))
       require(rankFunc(l)(e))
-      require(l(addr).rank == n.rank)
-      require(parentIsInHeap(e, l))
-      require(addrFunc(l)(e))
-      require(l.contains(e))
       require(rankFunc(l)(n))
+      require(isRoot(l(addr)) ==> (l(addr).rank <= n.rank))
+      require(!isRoot(l(addr)) ==> (l(addr).rank == n.rank))
 
       e match
         case Root(a, v, rank)          => ()
@@ -327,9 +249,9 @@ object InvariantsHelpers {
     ): Unit = {
       require(0 <= addr && addr < heap.size)
       require(l.forall(rankFunc(heap)) && rankFunc(heap)(n))
-      require(!isRoot(heap(addr)))
-      require(heap(addr).rank == n.rank)
       require(l.forall(addrFunc(heap)))
+      require(isRoot(heap(addr)) ==> (heap(addr).rank <= n.rank))
+      require(!isRoot(heap(addr)) ==> (heap(addr).rank == n.rank))
 
       l match {
         case Nil()      =>
@@ -340,7 +262,8 @@ object InvariantsHelpers {
     }.ensuring(l.forall(rankFunc(heap.updated(addr, n))))
 
     n match
-      case Root(a, _, _)     => ()
+      case Root(a, _, _) =>
+        assert(rankFunc(l.updated(addr, n))(n))
       case Child(a, _, r, p) =>
         OurListSpecs.updatePreservesIndices(l, addr, n, p)
 

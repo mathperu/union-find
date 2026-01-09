@@ -72,11 +72,6 @@ object UnionFindList {
     val boundedRankFuncOnHeap = boundedRankFunc(heap)
     require(heap.forall(boundedRankFuncOnHeap))
 
-    // Invariant VII
-    /* val ancestorsFuncOnHeap = ancestors(heap)
-    val noCyclesOnHeap = noCyclesFunc(heap)
-    require(heap.forall(noCyclesOnHeap)) */
-
     def isValidAddr(addr: BigInt): Boolean =
       0 <= addr && addr < size
 
@@ -244,15 +239,18 @@ object UnionFindList {
       require(isValidAddr(addr))
 
       // preconds for nodeAt(addr).rank enable proof for non-negative measure
-      def findInnerPathCompression(addr: BigInt): (UF[T], BigInt) = {
+      def findInnerPathCompression(addr: BigInt): (BigInt, List[BigInt]) = {
         require(isValidAddr(addr))
         val f = nodeAt(addr)
         require(f.rank >= 0)
         require(f.rank <= heap.size)
+
         decreases(heap.size - f.rank)
 
-        nodeAt(addr) match {
-          case Child(addr, value, dist, parentAddr) => {
+        val n = nodeAt(addr)
+
+        n match {
+          case cn @ Child(addr, value, dist, parentAddr) => {
             ListSpecs.forallContained(heap, parentFuncOnHeap, f)
             val parent = nodeAt(parentAddr)
             check(rankInv)
@@ -270,8 +268,8 @@ object UnionFindList {
             )
             check(parent.rank <= size)
 
-            val (newUF, root) = findInnerPathCompression(parentAddr)
-            assert(addr != root)
+            val (root, ancestors) = findInnerPathCompression(parentAddr)
+            /* assert(addr != root)
             val newNode = Child(addr, value, dist, root)
 
             assert(newUF.rankFuncOnHeap(newNode))
@@ -282,35 +280,21 @@ object UnionFindList {
             )
             assert(!isRoot(newUF.nodeAt(addr)))
             assert(newUF.nodeAt(addr).rank == newNode.rank)
-            assert(newUF.boundedRankFuncOnHeap(newNode))
-            (newUF.set(addr, newNode), root)
+            assert(newUF.boundedRankFuncOnHeap(newNode)) */
+            (root, Cons(addr, ancestors))
           }
           case r @ Root(addr, value, rank) => {
             instantiateRank(r)
             ListSpecs.forallContained(heap, addrFuncOnHeap, r)
-            (this, addr)
+            (addr, Nil[BigInt]())
           }
         }
-      }.ensuring(y =>
-        val (uf, rep) = y
-        uf.isValidAddr(addr) // &&
-        /* uf.heap.forall(e =>
-          !ancestorsFuncOnHeap(nodeAt(addr)).contains(e)
-            || nodeAt(addr) == uf.nodeAt(addr)
-        ) */
-        /* uf.isValidAddr(addr) &&
-        rep != addr &&
-        nodeAtIsRoot(rep) && isValidAddr(rep) &&
-        nodeAt(addr).rank <= nodeAt(rep).rank &&
-        uf.nodeAtIsRoot(rep) && uf.isValidAddr(rep) &&
-        uf.nodeAt(addr).rank <= uf.nodeAt(rep).rank &&
-        nodeAt(rep) == uf.nodeAt(rep) &&
-        nodeAt(addr).rank == uf.nodeAt(addr).rank &&
-        !isRoot(uf.nodeAt(addr)) &&
-        uf.heap.size == heap.size &&
-        uf.heap.forall(e => isRoot(e) == isRoot(heap(e.addr))) &&
-        uf.heap.filter(e => !isRoot(e)).size
-          == heap.filter(e => !isRoot(e)).size */
+      }.ensuring((rootA, ancestors) =>
+        isValidAddr(rootA) && nodeAtIsRoot(rootA)
+        && ancestors.forall(a => isValidAddr(a))
+        && ancestors.forall(a => !nodeAtIsRoot(a))
+        && ancestors.forall(a => nodeAt(a).rank < nodeAt(rootA).rank)
+        /* && ancestors.forall(a => find(a) == rootA) */
       )
 
       // Invoke invariants on Node[T]
@@ -318,42 +302,56 @@ object UnionFindList {
       (f.rank >= 0) because { instantiateRank(f); trivial }
       ListSpecs.forallContained(heap, boundedRankFuncOnHeap, f)
       OurListSpecs.weakenBoundOnListSize(heap, e => !isRoot(e), f.rank)
-      findInnerPathCompression(addr)
-    }.ensuring(y =>
-      val (uf, rep) = y
-      nodeAtIsRoot(rep) && isValidAddr(rep)
-      && nodeAt(addr).rank <= nodeAt(rep).rank
-    )
+      val (root, ancestors) = findInnerPathCompression(addr)
 
-    def rerouteMultiple(ra: BigInt, nodes: List[Node[T]]): UF[T] = {
+      (rerouteMultiple(root, ancestors), root)
+    }
+
+    def rerouteMultiple(ra: BigInt, nodes: List[BigInt]): UF[T] = {
       require(isValidAddr(ra))
       require(nodeAtIsRoot(ra))
-      require(nodes.forall(e => heap.contains(e)))
+      require(nodes.forall(a => isValidAddr((a))))
       // e valid addr ?
-      require(nodes.forall(e => !isRoot(e)))
-      require(nodes.forall(e => !nodeAtIsRoot(e.addr)))
-      require(
-        nodes.forall(e => find(e.addr) == ra)
-      ) // maybe weaken with rank < r.rank
+      // require(nodes.forall(e => !isRoot(e)))
+      require(nodes.forall(a => !nodeAtIsRoot(a)))
+      /* require(
+        nodes.forall(a => find(a) == ra)
+      ) */ // maybe weaken with rank < r.rank
+      require(nodes.forall(a => nodeAt(a).rank < nodeAt(ra).rank))
 
       def inner(
           ra: BigInt,
-          nodes: List[Node[T]],
+          nodes: List[BigInt],
           heap: List[Node[T]]
       ): List[Node[T]] = {
+        require(heap.forall(addrFunc(heap)))
+        require(heap.forall(parentFunc(heap)))
+        require(heap.map(_.addr) == List.range(0, heap.size))
+        require(heap.forall(rankFunc(heap)))
+        require(heap.forall(boundedRankFunc(heap)))
+
         require(0 <= ra && ra < heap.size)
         require(isRoot(heap(ra)))
-        require(nodes.forall(e => heap.contains(e)))
-        require(nodes.forall(e => !isRoot(heap(e.addr))))
-        require(nodes.forall(e => !isRoot(heap(e.addr))))
-        require(nodes.forall(e => e.rank < heap(ra).rank))
+        require(nodes.forall(a => isValidAddr(a)))
+        // require(nodes.forall(e => 0 <= e.addr && ))
+        // require(nodes.forall(e => !isRoot(e)))
+        require(nodes.forall(a => !isRoot(heap(a))))
+        require(nodes.forall(a => heap(a).rank < heap(ra).rank))
 
         nodes match
           case Cons(h, t) =>
-            h match
+            heap(h) match
               case Root(_, _, _)     => heap
               case Child(a, v, r, p) =>
                 val newHeap = inner(ra, t, heap)
+                assert(newHeap.size == heap.size)
+                ListSpecs.forallContained(nodes, isValidAddr, a)
+                assert(0 <= a && a < heap.size)
+                assert(0 <= a && a < newHeap.size)
+
+                assert(a != ra)
+                assert(r >= 0)
+                assert(a >= 0)
                 val newHeap2 = heap.updated(a, Child(a, v, r, ra))
                 newHeap2
           case Nil() => heap
@@ -361,8 +359,11 @@ object UnionFindList {
         nH.forall(addrFunc(nH)) && nH.forall(parentFunc(nH))
           && nH.map(_.addr) == List.range(0, nH.size)
           && nH.forall(rankFunc(nH)) && nH.forall(boundedRankFunc(nH))
+          && heap.size == nH.size
       )
 
+      assert(nodes.forall(a => !isRoot(heap(a))))
+      assert(nodes.forall(a => heap(a).rank < heap(ra).rank))
       val newHeap = inner(ra, nodes, heap)
       UF(newHeap)
     }

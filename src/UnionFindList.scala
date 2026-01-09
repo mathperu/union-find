@@ -7,6 +7,7 @@ import stainless.annotation._
 
 import morelistspecs.MoreListSpecs
 import InvariantsHelpers._
+import stainless.io.State
 
 object UnionFindList {
 
@@ -256,8 +257,14 @@ object UnionFindList {
       assert(boundedRankFunc(newHeap)(newNode))
       boundedRankAppend(heap, newNode)
 
+      // Ensures domain is updated
+      MoreListSpecs.mapContains(newHeap, _.value, newNode)
+      MoreListSpecs.mapDistributesOverAppend(heap, newNode, _.value)
+
       (UF(newHeap), newNode)
-    }
+    }.ensuring(res =>
+      res._1.domain.contains(value) && res._1.domain == domain :+ value
+    )
 
     /** Finds the root node address for the given address in the union-find.
       * Does not perform path compression.
@@ -506,8 +513,10 @@ object UnionFindList {
       assert(isValidAddr(r1) && isValidAddr(r2))
 
       link(r1, r2)
-    }
-
+    }.ensuring(res => {
+      val (newUF, newRootAddr) = res
+      newUF.size == size
+    })
   }
 
   /** Creates an empty union-find structure.

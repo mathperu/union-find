@@ -11,12 +11,28 @@ object MoreListSpecs {
   // ===== Append lemmas =====
   // =========================
 
+  /** ```
+    * empty == Nil() -> (empty :+ value).contains(value) && (empty :+ value).size == 1
+    * ```
+    */
   def appendToNil[T](empty: List[T], value: T): Unit = {
     require(empty == Nil[T]())
   }.ensuring(_ =>
     (empty :+ value).contains(value) && (empty :+ value).size == 1
   )
 
+  /** ```
+    * Nil() :+ value == Cons(value, Nil())
+    * ```
+    */
+  def snocNil[T](value: T): Unit = {}.ensuring(_ =>
+    Nil[T]() :+ value == Cons(value, Nil[T]())
+  )
+
+  /** ```
+    * l.size == 1 -> l == Cons(value, Nil())
+    * ```
+    */
   def singletonList[T](l: List[T], value: T): Unit = {
     require(l.contains(value))
     require(l.size == 1)

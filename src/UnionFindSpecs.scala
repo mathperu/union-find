@@ -95,6 +95,19 @@ object UnionFindSpecs {
 
       require(uf.nodeAtIsRoot(a1))
       require(uf.nodeAtIsRoot(a2))
+
+      def inner(tail1: List[Node[T]], tail2: List[Node[T]]): Unit = {
+        (tail1, tail2) match {
+          case (Nil(), Nil())               => ()
+          case (Cons(h1, t1), Cons(h2, t2)) =>
+            assert(h1 == h2)
+            inner(t1, t2)
+          case _ => ()
+        }
+      }.ensuring(_ => tail1.tail == tail2.tail)
+
+      val (newUF, newRoot) = uf.link(a1, a2)
+      inner(uf.buildParentChain(b).tail, newUF.buildParentChain(b).tail)
     }.ensuring(_ => {
       val (newUF, newRoot) = uf.link(a1, a2)
       uf.buildParentChain(b).tail == newUF.buildParentChain(b).tail
@@ -210,13 +223,14 @@ object UnionFindSpecs {
               parentsBefore.head.addr == a1 || parentsBefore.head.addr == a2
             ) // passes
 
-            // linkPreservesParentChain(a1, a2, b)
             // assert(parentsAfter.head.addr == a1 || parentsAfter.head.addr == a2)
 
             // assert(parentsAfter.head.addr == newRoot)
             // assert(parentsBefore.content.subsetOf(parentsAfter.content))
 
             // disjunction: uf.buildParentChain(b)
+            linkPreservesParentChain(a1, a2, b)
+
             if uf.find(b) == a1 then
               // TODO: set is on same root as b
               assert(parentsBefore.content.subsetOf(parentsAfter.content))
@@ -238,11 +252,20 @@ object UnionFindSpecs {
             // assert(newUF.heap.contains(uf.nodeAt(b)))
             // updatedListPreservesFind(a1, newUF.nodeAt(a1), b)
             // TODO: rank increased
+            // OurListSpecs.updateOrderDoesNotMatter(
+            //   uf.heap,
+            //   a1,
+            //   Root(a1, n1.value, n1.rank + 1),
+            //   a2,
+            //   Child(a2, n2.value, n2.rank, a1)
+            // )
+
+            assert(a1 != a2)
             setTwoFind(
               a1,
-              newUF.nodeAt(a1).asInstanceOf[Root[T]],
+              Root(a1, n1.value, n1.rank + 1),
               a2,
-              newUF.nodeAt(a2).asInstanceOf[Child[T]],
+              Child(a2, n2.value, n2.rank, a1),
               b
             )
             assert(newUF.find(b) == a1)

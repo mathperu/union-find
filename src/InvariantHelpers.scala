@@ -7,7 +7,7 @@ import stainless.annotation._
 import stainless.collection.Cons
 
 import UnionFindList._
-import ourlistspecs.OurListSpecs._
+import ourlistspecs.MoreListSpecs._
 import scala.annotation.internal.Child
 
 object InvariantsHelpers {

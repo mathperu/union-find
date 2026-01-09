@@ -5,7 +5,7 @@ import stainless.proof._
 import stainless.collection.{List, ListSpecs, Nil, Cons}
 import stainless.annotation._
 
-import ourlistspecs.OurListSpecs._
+import ourlistspecs.MoreListSpecs._
 import UnionFindList._
 import InvariantsHelpers._
 

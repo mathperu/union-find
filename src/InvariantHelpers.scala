@@ -7,7 +7,7 @@ import stainless.annotation._
 import stainless.collection.Cons
 
 import UnionFindList._
-import ourlistspecs.MoreListSpecs._
+import morelistspecs.MoreListSpecs
 import scala.annotation.internal.Child
 
 object InvariantsHelpers {
@@ -52,7 +52,7 @@ object InvariantsHelpers {
     }.ensuring(l.forall(parentFunc(heap :+ n)))
 
     parentInvAppendRec(l, l, n)
-    ListSpecs.snocForallAppend(l, n, parentFunc(l :+ n))
+    MoreListSpecs.snocForallAppend(l, n, parentFunc(l :+ n))
   }.ensuring(_ => (l :+ n).forall(parentFunc(l :+ n)))
 
   def parentInvUpdate[T](l: List[Node[T]], addr: BigInt, n: Node[T]): Unit = {
@@ -75,7 +75,7 @@ object InvariantsHelpers {
     }.ensuring(l.forall(parentFunc(heap.updated(addr, n))))
 
     parentInvUpdateRec(l, l, addr, n)
-    ListSpecs.forallUpdate(l, addr, n, parentFunc(l.updated(addr, n)))
+    MoreListSpecs.forallUpdate(l, addr, n, parentFunc(l.updated(addr, n)))
   }.ensuring { _ =>
     (l.updated(addr, n)).forall(parentFunc(l.updated(addr, n)))
   }
@@ -103,7 +103,7 @@ object InvariantsHelpers {
       require(addrFunc(l)(e))
       addrFunc((l :+ n))(e) because {
         assert(0 <= e.addr && e.addr < l.size)
-        ListSpecs.appendPreservesIndices(l, n, e.addr)
+        MoreListSpecs.appendPreservesIndices(l, n, e.addr)
         assert(l(e.addr) == e)
 
         (0 <= e.addr && e.addr < (l :+ n).size) && (l :+ n)(e.addr) == e
@@ -125,7 +125,7 @@ object InvariantsHelpers {
     }.ensuring(l.forall(addrFunc(heap :+ n)))
 
     addrInvAppendRec(l, l, n)
-    ListSpecs.snocForallAppend(l, n, addrFunc(l :+ n))
+    MoreListSpecs.snocForallAppend(l, n, addrFunc(l :+ n))
   }.ensuring { _ => (l :+ n).forall(addrFunc(l :+ n)) }
 
   // Invariant III implies invariant II
@@ -145,14 +145,14 @@ object InvariantsHelpers {
       l match {
         case Nil()      => ()
         case Cons(h, t) =>
-          ListSpecs.sliceAtIndex(l, heap, from, heap.size, h.addr)
+          MoreListSpecs.sliceAtIndex(l, heap, from, heap.size, h.addr)
           assert(addrFunc(heap)(h))
-          ListSpecs.sliceTail(l, heap, from, heap.size)
+          MoreListSpecs.sliceTail(l, heap, from, heap.size)
           rangeInvImpliesAddrInvRec(t, heap, from + 1)
       }
     }.ensuring(_ => l.forall(addrFunc(heap)))
 
-    ListSpecs.sliceZeroSize(l)
+    MoreListSpecs.sliceZeroSize(l)
     rangeInvImpliesAddrInvRec(l, l, 0)
   }.ensuring(_ => l.forall(addrFunc(l)))
 
@@ -205,7 +205,7 @@ object InvariantsHelpers {
         case Cons(h, t) => {
           h match {
             case Child(addr, value, rank, parentAddr) =>
-              ListSpecs.appendPreservesIndices(heap, n, parentAddr)
+              MoreListSpecs.appendPreservesIndices(heap, n, parentAddr)
             case Root(addr, value, rank) => ()
           }
           rankInvAppendRec(t, heap, n)
@@ -214,7 +214,7 @@ object InvariantsHelpers {
     }.ensuring(l.forall(rankFunc(heap :+ n)))
 
     rankInvAppendRec(l, l, n)
-    ListSpecs.snocForallAppend(l, n, rankFunc(l :+ n))
+    MoreListSpecs.snocForallAppend(l, n, rankFunc(l :+ n))
   }.ensuring { _ => (l :+ n).forall(rankFunc(l :+ n)) }
 
   def rankInvUpdate[T](l: List[Node[T]], addr: BigInt, n: Node[T]): Unit = {
@@ -248,7 +248,7 @@ object InvariantsHelpers {
           if parent == addr then ()
           else if a == addr then ()
           else
-            ListSpecs.predicatePreservedOnNonUpdatedPair(
+            MoreListSpecs.predicatePreservedOnNonUpdatedPair(
               l,
               a,
               parent,
@@ -257,7 +257,7 @@ object InvariantsHelpers {
               (c: Node[T], p: Node[T]) => c.rank < p.rank
             )
 
-            ListSpecs.updatePreservesIndices(l, addr, n, a)
+            MoreListSpecs.updatePreservesIndices(l, addr, n, a)
     }.ensuring(rankFunc(l.updated(addr, n))(e))
 
     def rankInvUpdateRec(
@@ -284,11 +284,11 @@ object InvariantsHelpers {
       case Root(a, _, _) =>
         assert(rankFunc(l.updated(addr, n))(n))
       case Child(a, _, r, p) =>
-        ListSpecs.updatePreservesIndices(l, addr, n, p)
+        MoreListSpecs.updatePreservesIndices(l, addr, n, p)
         assert(rankFunc(l.updated(addr, n))(n))
 
     rankInvUpdateRec(l, addr, l, n)
-    ListSpecs.forallUpdate(l, addr, n, rankFunc(l.updated(addr, n)))
+    MoreListSpecs.forallUpdate(l, addr, n, rankFunc(l.updated(addr, n)))
   }.ensuring { _ =>
     (l.updated(addr, n)).forall(rankFunc(l.updated(addr, n)))
   }
@@ -319,7 +319,7 @@ object InvariantsHelpers {
     }.ensuring(l.forall(boundedFunc(heap :+ n)))
 
     boundedRankAppendRec(l, l, n)
-    ListSpecs.snocForallAppend(l, n, boundedFunc(l :+ n))
+    MoreListSpecs.snocForallAppend(l, n, boundedFunc(l :+ n))
   }.ensuring { _ => (l :+ n).forall(boundedFunc(l :+ n)) }
 
   /** Invariant V: rank of a node is less than or equal to the size of the heap
@@ -349,7 +349,7 @@ object InvariantsHelpers {
     }.ensuring { _ => l.forall(boundedFunc(heap.updated(addr, n))) }
 
     boundedRankUpdateRec(l, l, addr, n)
-    ListSpecs.forallUpdate(l, addr, n, boundedFunc(l.updated(addr, n)))
+    MoreListSpecs.forallUpdate(l, addr, n, boundedFunc(l.updated(addr, n)))
   }.ensuring { _ => l.updated(addr, n).forall(boundedFunc(l.updated(addr, n))) }
 
   /** Invariant VI: rank is bounded by number of children
@@ -381,9 +381,9 @@ object InvariantsHelpers {
       require(boundedRankFunc(l)(elem))
       n match {
         case Child(_, _, r, _) =>
-          ListSpecs.appendFilterSizeDecreases(l, n, e => !isRoot(e))
+          MoreListSpecs.appendFilterSizeDecreases(l, n, e => !isRoot(e))
         case Root(_, _, r) =>
-          ListSpecs.appendFilterSizePreserved(l, n, e => !isRoot(e))
+          MoreListSpecs.appendFilterSizePreserved(l, n, e => !isRoot(e))
       }
     }.ensuring { _ => boundedRankFunc(l :+ n)(elem) }
 
@@ -403,7 +403,7 @@ object InvariantsHelpers {
     }.ensuring { _ => l.forall(boundedRankFunc(heap :+ n)) }
 
     boundedRankAppendRec(l, l, n)
-    ListSpecs.snocForallAppend(l, n, boundedRankFunc(l :+ n))
+    MoreListSpecs.snocForallAppend(l, n, boundedRankFunc(l :+ n))
   }.ensuring { _ => (l :+ n).forall(boundedRankFunc(l :+ n)) }
 
   def boundedRankUpdate[T](l: List[Node[T]], addr: BigInt, n: Node[T]): Unit = {
@@ -424,14 +424,14 @@ object InvariantsHelpers {
 
       n match {
         case Child(_, _, r, _) =>
-          ListSpecs.updatedFilterSizeIncreases(
+          MoreListSpecs.updatedFilterSizeIncreases(
             heap,
             addr,
             n,
             e => !isRoot(e)
           )
         case Root(_, _, r) =>
-          ListSpecs.updatedFilterSizeIncreases(
+          MoreListSpecs.updatedFilterSizeIncreases(
             heap,
             addr,
             n,
@@ -459,7 +459,7 @@ object InvariantsHelpers {
     }.ensuring { _ => l.forall(boundedRankFunc(heap.updated(addr, n))) }
 
     boundedRankUpdateRec(l, l, addr, n)
-    ListSpecs.forallUpdate(l, addr, n, boundedRankFunc(l.updated(addr, n)))
+    MoreListSpecs.forallUpdate(l, addr, n, boundedRankFunc(l.updated(addr, n)))
   }.ensuring { _ =>
     (l.updated(addr, n)).forall(boundedRankFunc(l.updated(addr, n)))
   }

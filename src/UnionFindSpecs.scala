@@ -5,7 +5,7 @@ import stainless.proof._
 import stainless.collection.{List, ListSpecs, Nil, Cons}
 import stainless.annotation._
 
-import ourlistspecs.MoreListSpecs._
+import morelistspecs.MoreListSpecs
 import UnionFindList._
 import InvariantsHelpers._
 
@@ -44,7 +44,7 @@ object UnionFindSpecs {
     def makeAddsValueToDomain(value: T): Unit = {
       require(!uf.domain.contains(value))
       val (newUF, newNode) = uf.make(value)
-      ListSpecs.mapDistributesOverAppend(uf.heap, newNode, _.value)
+      MoreListSpecs.mapDistributesOverAppend(uf.heap, newNode, _.value)
 
       assert(newUF.domain == uf.domain :+ value)
       assert(newUF.domain.contains(value))

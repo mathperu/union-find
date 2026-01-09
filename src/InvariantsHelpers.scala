@@ -430,4 +430,20 @@ object InvariantsHelpers {
     (l.updated(addr, n)).forall(boundedRankFunc(l.updated(addr, n)))
   }
 
+  def getAncestors[T](l: List[Node[T]], n: Node[T]): List[Node[T]] = {
+    require(l.forall(parentFunc(l)))
+    require(l.forall(addrFunc(l)))
+    require(l.forall(rankFunc(l)))
+    require(l.forall(boundedRankFunc(l)))
+    decreases(l.size - n.rank)
+    n match
+      case Child(_, _, _, pa) => Cons(l(pa), getAncestors(l, l(pa)))
+      case Root(_, _, _)      => Nil()
+  }
+
+  def ancestors[T] = (l: List[Node[T]]) => (n: Node[T]) => getAncestors(l, n)
+
+  def noCyclesFunc[T] = (l: List[Node[T]]) =>
+    (n: Node[T]) => !ancestors(l)(n).contains(n)
+
 }

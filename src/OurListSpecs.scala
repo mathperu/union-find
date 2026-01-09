@@ -375,10 +375,4 @@ object OurListSpecs {
     require(x <= l.filter(p).size)
   }.ensuring { _ => x <= l.size }
 
-  // Head lemma
-
-  def snocMaintainsPredOnHead[T](l: List[T], n: T, p: T => Boolean): Unit = {
-    require(l.nonEmpty && p(l.head))
-  }.ensuring { _ => p((l :+ n).head) }
-
 }

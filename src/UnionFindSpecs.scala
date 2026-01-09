@@ -75,31 +75,6 @@ object UnionFindSpecs {
       updatedUF.find(b) == rootAddr
     })
 
-    // def findEquivToListTraversal(addr: BigInt) = {
-
-    // }.ensuring(
-    //   uf.find(addr) == uf.heap.
-    // )
-
-    // other ideas
-    // if uf.find(b) == a1 then after link newUF.find(b) == newRoot
-
-    def linkPreservesParentChain(
-        a1: BigInt,
-        a2: BigInt,
-        b: BigInt
-    ): Unit = {
-      require(uf.isValidAddr(a1))
-      require(uf.isValidAddr(a2))
-      require(uf.isValidAddr(b))
-
-      require(uf.nodeAtIsRoot(a1))
-      require(uf.nodeAtIsRoot(a2))
-    }.ensuring(_ => {
-      val (newUF, newRoot) = uf.link(a1, a2)
-      uf.buildParentChain(b).tail == newUF.buildParentChain(b).tail
-    })
-
     def linkPreservesOneRoot(
         a1: BigInt,
         a2: BigInt,
@@ -115,47 +90,29 @@ object UnionFindSpecs {
       require(uf.find(b) == a1 || uf.find(b) == a2)
 
       val (newUF, newRoot) = uf.link(a1, a2)
-      val parentsBefore = uf.buildParentChain(b)
-      val parentsAfter = newUF.buildParentChain(b)
 
       (uf.nodeAt(a1), uf.nodeAt(a2)) match {
         case (n1, n2) =>
           if n1.rank < n2.rank then
             // OurListSpecs.mapAtIndex(newUF.heap, a1, _.parent == a2)
             // OurListSpecs.mapAtIndex(newUF.heap, a2, _.rank == n2.rank)
-            // assert(newRoot == a2)
+            assert(newRoot == a2)
             // assert(newUF.heap.contains(uf.nodeAt(b)))
-            val newChild = Child(a1, n1.value, n1.rank, a2)
-            // assert(newUF.heap == uf.heap.updated(a1, newChild))
-            // updatedListPreservesFind(a2, newUF.nodeAt(a2), b)
-
-            assert(
-              parentsBefore.head.addr == a1 || parentsBefore.head.addr == a2
-            )
-            // linkPreservesParentChain(a1, a2, b)
-            // assert(parentsAfter.head.addr == a1 || parentsAfter.head.addr == a2)
-
-            // assert(parentsAfter.head.addr == newRoot)
-
-            // disjunction: uf.buildParentChain(b)
-            if uf.find(b) == a1 then assert(newUF.find(b) == a2)
-            else
-              assert(parentsBefore.content.subsetOf(parentsAfter.content))
-              // assert(parentsAfter.head.addr == )
-              assert(newUF.find(b) == a2)
+            updatedListPreservesFind(a2, newUF.nodeAt(a2), b)
+            assert(newUF.find(b) == a2)
           else if n1.rank > n2.rank then
             // OurListSpecs.mapAtIndex(newUF.heap, a2, _.parent == a1)
             // OurListSpecs.mapAtIndex(newUF.heap, a1, _.rank == n1.rank)
             assert(newRoot == a1)
             assert(newUF.heap.contains(uf.nodeAt(b)))
-            // updatedListPreservesFind(a1, newUF.nodeAt(a1), b)
+            updatedListPreservesFind(a1, newUF.nodeAt(a1), b)
             assert(newUF.find(b) == a1)
           else
             // OurListSpecs.mapAtIndex(newUF.heap, a2, _.parent == a1)
             // OurListSpecs.mapAtIndex(newUF.heap, a1, _.rank == n1.rank + 1)
             assert(newRoot == a1)
             assert(newUF.heap.contains(uf.nodeAt(b)))
-            // updatedListPreservesFind(a1, newUF.nodeAt(a1), b)
+            updatedListPreservesFind(a1, newUF.nodeAt(a1), b)
             assert(newUF.find(b) == a1)
       }
 

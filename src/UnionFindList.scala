@@ -5,11 +5,14 @@ import stainless.proof._
 import stainless.collection.{List, ListSpecs, Nil, Cons}
 import stainless.annotation._
 
-import ourlistspecs.OurListSpecs
+import ourlistspecs.OurListSpecs._
 import InvariantsHelpers._
 
 object UnionFindList {
 
+  /** A node in the union-find structure. Can be one of two subtypes: [[Child]]
+    * or [[Root]].
+    */
   sealed trait Node[T] {
     val addr: BigInt
     val rank: BigInt
@@ -19,15 +22,46 @@ object UnionFindList {
     require(rank >= 0)
   }
 
+  /** A child node in the union-find structure.
+    *
+    * @param addr
+    *   the address of the node. Must match its index in the heap.
+    * @param value
+    *   the value stored in the node.
+    * @param rank
+    *   the number of tree levels below the node. Used for union by rank and
+    *   termination.
+    * @param parentAddr
+    *   the address of the parent node. Must be different from addr.
+    */
   case class Child[T](addr: BigInt, value: T, rank: BigInt, parentAddr: BigInt)
       extends Node[T] {
     require(addr != parentAddr)
   }
+
+  /** A root node in the union-find structure.
+    *
+    * @param addr
+    *   the address of the node. Must match its index in the heap.
+    * @param value
+    *   the value stored in the node.
+    * @param rank
+    *   the number of tree levels below the node. Used for union by rank and
+    *   termination.
+    */
   case class Root[T](addr: BigInt, value: T, rank: BigInt) extends Node[T]
 
-  // required to instantiate dist >= 0 proofs
+  /** Invariant lemma required to instantiate dist >= 0 proofs
+    */
   def instantiateRank[T](n: Node[T]): Unit = {}.ensuring(n.rank >= 0)
 
+  /** Checks whether a node is a root node
+    *
+    * @param n
+    *   the node to be checked
+    * @return
+    *   true if the node is a root, false otherwise
+    */
   def isRoot[T](n: Node[T]): Boolean = {
     n match {
       case Root(a, v, r) => true
@@ -35,6 +69,13 @@ object UnionFindList {
     }
   }
 
+  /** Checks whether the heap contains at least one root node
+    *
+    * @param heap
+    *   the heap to be checked
+    * @return
+    *   true if the heap contains a root node, false otherwise
+    */
   def hasRoot[T](heap: List[Node[T]]): Boolean = {
     decreases(heap)
 
@@ -46,10 +87,25 @@ object UnionFindList {
       case Nil() => false
   }
 
+  /** Union-Find structure implemented as a list of nodes
+    *
+    * @param heap
+    *   the list of nodes representing the union-find structure, organized as a
+    *   heap store. The index of each node in the list corresponds to its
+    *   address.
+    */
   case class UF[T](heap: List[Node[T]]) {
 
+    /** The list of addresses in the union-find structure
+      */
     val addresses: List[BigInt] = heap.map(n => n.addr)
+
+    /** The size of the union-find structure (number of nodes)
+      */
     val size: BigInt = heap.size
+
+    /** The domain (subset of [[T]]) of the union-find structure
+      */
     val domain: List[T] = heap.map(n => n.value)
 
     // Invariant I: parent address is always in the heap
@@ -106,9 +162,9 @@ object UnionFindList {
       val prevNode = heap(addr)
 
       // invariant III
-      OurListSpecs.mapAtIndex(heap, addr, _.addr)
-      OurListSpecs.rangeAtIndexPlusStartIsIndexPlusStart(0, heap.size, addr)
-      OurListSpecs.mapUpdate(heap, addr, n, _.addr)
+      ListSpecs.mapAtIndex(heap, addr, _.addr)
+      ListSpecs.rangeAtIndexPlusStartIsIndexPlusStart(0, heap.size, addr)
+      ListSpecs.mapUpdate(heap, addr, n, _.addr)
 
       // Invariant I and II
       rangeInvImpliesAddrInv(newHeap)
@@ -128,11 +184,26 @@ object UnionFindList {
 
       UF(newHeap)
 
+    /** Checks whether the node at the given address is a root node.
+      * @param addr
+      *   the address of the node to be checked.
+      * @return
+      *   true if the node at the given address is a root node, false otherwise.
+      */
     def nodeAtIsRoot(addr: BigInt): Boolean = {
       if (isValidAddr(addr)) then isRoot(nodeAt(addr))
       else true
     }
 
+    /** Checks whether the given node has the specified rank.
+      *
+      * @param n
+      *   the node to be checked
+      * @param x
+      *   the rank to be compared against
+      * @return
+      *   true if the node has the specified rank, false otherwise
+      */
     def rankIs(n: Node[T], x: BigInt): Boolean = {
       n match {
         case Child(addr, value, rank, parentAddr) => rank == x
@@ -141,7 +212,14 @@ object UnionFindList {
 
     }
 
-    // invariant timeout in stainless
+    /** Adds the given value to the domain (subset of [[T]]) of the union-find
+      * structure.
+      *
+      * @param value
+      *   the value to be added as a new element.
+      * @return
+      *   a tuple containing the updated union-find structure and the new node.
+      */
     def make(value: T): (UF[T], Node[T]) = {
       require(!domain.contains(value))
 
@@ -154,18 +232,18 @@ object UnionFindList {
       parentInvAppend(heap, newNode)
 
       // Invariant II: address matches position in head
-      OurListSpecs.appendedElementIsAtIndexOldSize(heap, newNode)
+      ListSpecs.appendedElementIsAtIndexOldSize(heap, newNode)
       assert(addrFunc(newHeap)(newNode))
       addrInvAppend(heap, newNode)
 
       // Invariant III: addresses are correct
-      OurListSpecs.rangeAppend(0, heap.size)
-      OurListSpecs.mapDistributesOverAppend(heap, newNode, _.addr)
+      ListSpecs.rangeAppend(0, heap.size)
+      ListSpecs.mapDistributesOverAppend(heap, newNode, _.addr)
 
       // Invariant IV: rank of a node is less than or equal to its parent's rank
       assert(rankFunc(newHeap)(newNode))
       (!heap.contains(newNode)) because {
-        OurListSpecs.mapContains(
+        ListSpecs.mapContains(
           heap,
           n => n.value,
           newNode
@@ -181,8 +259,14 @@ object UnionFindList {
       (UF(newHeap), newNode)
     }
 
-    // no path compression
-    // provide address and finds parent's address
+    /** Finds the root node address for the given address in the union-find.
+      * Does not perform path compression.
+      *
+      * @param addr
+      *   an arbitrary address in the union-find structure.
+      * @return
+      *   the address of the root node corresponding to the given address.
+      */
     def find(addr: BigInt): BigInt = {
       require(isValidAddr(addr))
 
@@ -206,7 +290,7 @@ object UnionFindList {
             check(parent.rank >= 0)
 
             ListSpecs.forallContained(heap, boundedRankFuncOnHeap, parent)
-            OurListSpecs.weakenBoundOnListSize(
+            ListSpecs.weakenBoundOnListSize(
               heap,
               e => !isRoot(e),
               parent.rank
@@ -229,18 +313,37 @@ object UnionFindList {
       val f = nodeAt(addr)
       (f.rank >= 0) because { instantiateRank(f); trivial }
       ListSpecs.forallContained(heap, boundedRankFuncOnHeap, f)
-      OurListSpecs.weakenBoundOnListSize(heap, e => !isRoot(e), f.rank)
+      ListSpecs.weakenBoundOnListSize(heap, e => !isRoot(e), f.rank)
       findInner(addr)
     }.ensuring(y =>
       nodeAtIsRoot(y) && isValidAddr(y) && nodeAt(addr).rank <= nodeAt(y).rank
     )
 
+    /** Checks whether two addresses are in the same set.
+      *
+      * @param a1
+      *   the first address
+      * @param a2
+      *   the second address
+      * @return
+      *   true if both addresses belong to the same set, false otherwise
+      */
     def equiv(a1: BigInt, a2: BigInt): Boolean = {
       require(isValidAddr(a1))
       require(isValidAddr(a2))
       find(a1) == find(a2)
     }
 
+    /** Links two root nodes together, returning the new union-find structure
+      *
+      * @param a1
+      *   the first root node
+      * @param a2
+      *   the second root node
+      * @return
+      *   a tuple containing the updated union-find structure and the address of
+      *   the new root node
+      */
     def link(a1: BigInt, a2: BigInt): (UF[T], BigInt) = {
       require(
         isValidAddr(a1) && isValidAddr(a2) && nodeAtIsRoot(a1) && nodeAtIsRoot(
@@ -278,6 +381,7 @@ object UnionFindList {
         }
     }
 
+    // Helper method for link when ranks are equal
     private def setTwo(
         ar: BigInt,
         r: Root[T],
@@ -314,16 +418,16 @@ object UnionFindList {
       val newHeapRootFirstTemp = heap.updated(ar, r)
       val newHeapRootFirst = newHeapRootFirstTemp.updated(ac, c)
       // Invariant III
-      OurListSpecs.mapAtIndex(heap, ar, _.addr)
-      OurListSpecs.rangeAtIndexPlusStartIsIndexPlusStart(0, heap.size, ar)
-      OurListSpecs.mapUpdate(heap, ar, r, _.addr)
-      OurListSpecs.mapAtIndex(newHeapRootFirstTemp, ac, _.addr)
-      OurListSpecs.rangeAtIndexPlusStartIsIndexPlusStart(
+      ListSpecs.mapAtIndex(heap, ar, _.addr)
+      ListSpecs.rangeAtIndexPlusStartIsIndexPlusStart(0, heap.size, ar)
+      ListSpecs.mapUpdate(heap, ar, r, _.addr)
+      ListSpecs.mapAtIndex(newHeapRootFirstTemp, ac, _.addr)
+      ListSpecs.rangeAtIndexPlusStartIsIndexPlusStart(
         0,
         newHeapRootFirstTemp.size,
         ac
       )
-      OurListSpecs.mapUpdate(newHeapRootFirstTemp, ac, c, _.addr)
+      ListSpecs.mapUpdate(newHeapRootFirstTemp, ac, c, _.addr)
       // Invariant II
       rangeInvImpliesAddrInv(newHeapRootFirstTemp)
       rangeInvImpliesAddrInv(newHeapRootFirst)
@@ -331,14 +435,14 @@ object UnionFindList {
       parentInvUpdate(heap, ar, r)
       parentInvUpdate(newHeapRootFirstTemp, ac, c)
       // Invariant IV
-      OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
+      ListSpecs.predicateIsPreservedOnNonUpdatedElements(
         heap,
         ar,
         r,
         isRoot,
         ac
       )
-      OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
+      ListSpecs.predicateIsPreservedOnNonUpdatedElements(
         heap,
         ar,
         r,
@@ -353,7 +457,7 @@ object UnionFindList {
       val newHeapChildFirstTemp = heap.updated(ac, c)
       val newHeapChildFirst = newHeapRootFirstTemp.updated(ar, r)
       // Invariant VI
-      OurListSpecs.predicateIsPreservedOnNonUpdatedElements(
+      ListSpecs.predicateIsPreservedOnNonUpdatedElements(
         heap,
         ac,
         c,
@@ -361,7 +465,7 @@ object UnionFindList {
         ar
       )
 
-      OurListSpecs.updatedFilterSizeIncreases2(heap, ac, c, e => !isRoot(e))
+      ListSpecs.updatedFilterSizeIncreases2(heap, ac, c, e => !isRoot(e))
       ListSpecs.forallContained(
         heap,
         e => e.rank <= heap.filter(e => !isRoot(e)).size,
@@ -378,11 +482,22 @@ object UnionFindList {
       boundedRankUpdate(newHeapChildFirstTemp, ar, r)
 
       // Order of operations does not matter
-      OurListSpecs.updateOrderDoesNotMatter(heap, ar, r, ac, c)
+      ListSpecs.updateOrderDoesNotMatter(heap, ar, r, ac, c)
 
       UF(newHeapRootFirst)
     }
 
+    /** Unites the sets containing the two given addresses, returning the new
+      * union-find structure.
+      *
+      * @param a1
+      *   the first address
+      * @param a2
+      *   the second address
+      * @return
+      *   a tuple containing the updated union-find structure and the address of
+      *   the new root node
+      */
     def union(a1: BigInt, a2: BigInt): (UF[T], BigInt) = {
       require(isValidAddr(a1) && isValidAddr(a2))
       val r1 = find(a1)

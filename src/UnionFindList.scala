@@ -87,7 +87,7 @@ object UnionFindList {
         case Root(addr, value, rank)           => addr
       }
 
-    private def set(addr: BigInt, n: Node[T]): UF[T] = {
+    private def set(addr: BigInt, n: Node[T]): UF[T] =
       require(isValidAddr(addr))
       require(isValidAddr(n.addr))
       require(n.addr == addr)
@@ -127,7 +127,6 @@ object UnionFindList {
       parentInvUpdate(heap, addr, n)
 
       UF(newHeap)
-    }
 
     def nodeAtIsRoot(addr: BigInt): Boolean = {
       if (isValidAddr(addr)) then isRoot(nodeAt(addr))

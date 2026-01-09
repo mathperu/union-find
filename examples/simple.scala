@@ -19,18 +19,10 @@ object UFExample {
   def exampleUsage()(implicit @ghost state: stainless.io.State): Unit = {
     val uf = emptyUF[BigInt]()
 
-    assert(uf.domain == Nil())
     val (uf1, _) = uf.make(0)
-    MoreListSpecs.appendToNil(uf.domain, 0)
-    MoreListSpecs.singletonList(uf.domain :+ 0, 0)
-    assert(uf1.domain == uf.domain :+ 0)
-    ListSpecs.snocIsAppend(uf.domain, 0)
-    assert(uf1.domain == uf.domain ++ List(0))
-    ListSpecs.snocAfterAppend(uf.domain, Nil(), 0)
 
-    snocNil(0)
-    assert(uf1.domain == Nil[BigInt]() :+ 0)
-    assert(uf1.domain == Cons[BigInt](0, Nil[BigInt]()))
+    // needed to prove that the domain is correctly initialized
+    MoreListSpecs.snocNil(0)
 
     val (uf2, _) = uf1.make(1)
     val (uf3, _) = uf2.make(2)

@@ -1,4 +1,6 @@
 import unionfind.UnionFindList._
+import stainless.collection.{List, ListSpecs, Nil, Cons}
+import unionfind.morelistspecs.MoreListSpecs
 
 object UFExample {
 
@@ -13,7 +15,13 @@ object UFExample {
   def exampleUsage(): Unit = {
     val uf = emptyUF[BigInt]()
 
+    assert(uf.domain == Nil())
     val (uf1, _) = uf.make(0)
+    MoreListSpecs.appendToNil(uf.domain, 0)
+    MoreListSpecs.singletonList(uf.domain :+ 0, 0)
+    assert(uf1.domain == uf.domain :+ 0)
+    assert(uf1.domain == Nil() :+ 0)
+    assert(uf1.domain == Cons(0, Nil()))
     val (uf2, _) = uf1.make(1)
     val (uf3, _) = uf2.make(2)
     val (uf4, _) = uf3.make(3)

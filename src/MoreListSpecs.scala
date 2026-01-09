@@ -11,6 +11,17 @@ object MoreListSpecs {
   // ===== Append lemmas =====
   // =========================
 
+  def appendToNil[T](empty: List[T], value: T): Unit = {
+    require(empty == Nil[T]())
+  }.ensuring(_ =>
+    (empty :+ value).contains(value) && (empty :+ value).size == 1
+  )
+
+  def singletonList[T](l: List[T], value: T): Unit = {
+    require(l.contains(value))
+    require(l.size == 1)
+  }.ensuring(_ => l == Cons(value, Nil[T]()))
+
   /** ```
     * (l :+ elem)(l.size) == elem
     * ```

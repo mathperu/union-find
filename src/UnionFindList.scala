@@ -519,5 +519,5 @@ object UnionFindList {
     */
   def emptyUF[T](): UF[T] = {
     UF[T](Nil[Node[T]]())
-  }
+  }.ensuring(emptyUF => emptyUF.domain == Nil[T]())
 }

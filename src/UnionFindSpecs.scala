@@ -93,5 +93,26 @@ object UnionFindSpecs {
     }.ensuring(_ =>
       uf.union(a1, a2)._2 == uf.find(a1) || uf.union(a1, a2)._2 == uf.find(a2)
     )
+
+    /** Any element that was in the set of either a1 or a2 is now in the merged
+      * set.
+      * @note
+      *   This spec is not fully proved. Please check out branch mergeset for a
+      *   partial proof.
+      *
+      * @param a1
+      * @param a2
+      * @param b
+      */
+    def unionMergedTheSets(a1: BigInt, a2: BigInt, b: BigInt): Unit = {
+      require(uf.isValidAddr(a1))
+      require(uf.isValidAddr(a2))
+      require(uf.isValidAddr(b))
+    }.ensuring(_ =>
+      (!(uf.equiv(a1, b) || uf.equiv(a2, b)) || uf
+        .find(b) == uf.union(a1, a2)._2)
+        && ((uf.equiv(a1, b) || uf.equiv(a2, b)) || uf
+          .find(b) != uf.union(a1, a2)._2)
+    )
   }
 }

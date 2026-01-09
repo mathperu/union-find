@@ -1,4 +1,4 @@
-# Implementation of Union Find in Stainless
+# Partial Implementation of Union Find in Stainless
 
 Mathilde Peruzzo, Rassene M'sadaa, Julian Marmier
 
@@ -7,6 +7,8 @@ Mathilde Peruzzo, Rassene M'sadaa, Julian Marmier
 ```bash
 stainless src/*
 ```
+
+**Note**: `unionMergedTheSets` has not been fully proved and will timeout in Stainless. For a partial proof, please see branch `mergeset`.
 
 ## Using the library
 

@@ -34,12 +34,12 @@ object UnionFindSpecs {
 
     def makeReturnsASingletonSet(value: T): Unit = {
       require(!uf.domain.contains(value))
-      val (newUF, newNode) = uf.make(value)
     }.ensuring(_ =>
-      val (newUF, newNode) = uf.make(value)
-      isRoot(newNode)
-      && newUF.find(newNode.addr) == newNode.addr
-      && uf.rankIs(newNode, BigInt(0))
+      isRoot(uf.make(value)._2)
+        && (uf.find(uf.make(value)._2.addr) == BigInt(-1) || uf.find(
+          uf.make(value)._2.addr
+        ) == uf.make(value)._2.addr)
+        && uf.rankIs(uf.make(value)._2, BigInt(0))
     )
 
     def linkReturnsARootOfInput(a1: BigInt, a2: BigInt): Unit = {

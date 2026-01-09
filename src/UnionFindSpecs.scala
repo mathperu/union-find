@@ -100,27 +100,31 @@ object UnionFindSpecs {
       uf.buildParentChain(b).tail == newUF.buildParentChain(b).tail
     })
 
-    // def parentChainRelation(
-    //     a1: BigInt,
-    //     a2: BigInt,
-    //     b: BigInt
-    // ): Unit = {
-    //   require(uf.isValidAddr(a1))
-    //   require(uf.isValidAddr(a2))
-    //   require(uf.isValidAddr(b))
+    /** Lemma: updating a node that isn't b's root implies invariance of find(b):
+      *
+      *  ```uf.find(b) != addr => uf.set(addr, n).find(b) == uf.find(b)```
+      *
+      * @param addr
+      *   the address to update
+      * @param n
+      *   the new node to set at addr
+      * @param b
+      *   the address whose find result should be preserved
+      */
+    def setMaintainsFind(addr: BigInt, n: Node[T], b: BigInt): Unit = {
+      require(uf.isValidAddr(addr))
+      require(uf.isValidAddr(b))
+      require(addr == n.addr)
 
-    //   require(uf.nodeAtIsRoot(a1))
-    //   require(uf.nodeAtIsRoot(a2))
+      // TODO assert a bunch of invariants on n, or copy paste from set
 
-    //   val parentsBefore = uf.buildParentChain(b)
-    //   val (newUF, newRoot) = uf.link(a1, a2)
-    //   val parentsAfter = newUF.buildParentChain(b)
-
-    //   assert(parentsBefore.content.subsetOf(parentsAfter.content))
-    // }.ensuring(_ => {
-    //   val (newUF, newRoot) = uf.link(a1, a2)
-    //   uf.buildParentChain(b).content.subsetOf(newUF.buildParentChain(b).content)
-    // })
+      require(uf.nodeAtIsRoot(addr))
+      require(uf.find(b) != addr)
+    }.ensuring(_ => {
+      val newUF = uf.set(addr, n)
+      newUF.nodeAtIsRoot(addr)
+      newUF.find(b) == uf.find(b)
+    })
 
     def parentChainSublistImpliesFind(
         a1: BigInt,
@@ -148,7 +152,30 @@ object UnionFindSpecs {
       val parentsAfter = newUF.buildParentChain(b)
 
       parentsAfter.head.addr == newRoot
-      // uf.find(b) == newUF.find(b)
+      // implies newUF.find(b) = newRoot
+    })
+
+    def setTwoFind(
+        ar: BigInt,
+        r: Root[T],
+        ac: BigInt,
+        c: Child[T],
+        b: BigInt
+    ): Unit = {
+      require(uf.isValidAddr(ar))
+      require(uf.isValidAddr(r.addr))
+      require(r.addr == ar)
+
+      require(uf.isValidAddr(ac))
+      require(uf.isValidAddr(c.addr))
+      require(c.addr == ac)
+
+      require(uf.find(b) == ar || uf.find(b) == ac)
+
+      require(ar != ac)
+    }.ensuring(_ => {
+      val newUF = uf.setTwo(ar, r, ac, c)
+      newUF.find(b) == ar
     })
 
     def linkPreservesOneRoot(
@@ -172,42 +199,52 @@ object UnionFindSpecs {
       (uf.nodeAt(a1), uf.nodeAt(a2)) match {
         case (n1, n2) =>
           if n1.rank < n2.rank then
-            // OurListSpecs.mapAtIndex(newUF.heap, a1, _.parent == a2)
-            // OurListSpecs.mapAtIndex(newUF.heap, a2, _.rank == n2.rank)
-            // assert(newRoot == a2)
-            // assert(newUF.heap.contains(uf.nodeAt(b)))
+            // (newRoot == a2) passes
+            // (newUF.heap.contains(uf.nodeAt(b))) doesn't pass
             val newChild = Child(a1, n1.value, n1.rank, a2)
             assert(
               newUF.heap == uf.heap.updated(a1, newChild)
-            ) // this passes
+            ) // passes
 
             assert(
               parentsBefore.head.addr == a1 || parentsBefore.head.addr == a2
-            )
+            ) // passes
+
             // linkPreservesParentChain(a1, a2, b)
             // assert(parentsAfter.head.addr == a1 || parentsAfter.head.addr == a2)
 
             // assert(parentsAfter.head.addr == newRoot)
+            // assert(parentsBefore.content.subsetOf(parentsAfter.content))
 
             // disjunction: uf.buildParentChain(b)
-            if uf.find(b) == a1 then assert(newUF.find(b) == a2)
-            else
+            if uf.find(b) == a1 then
+              // TODO: set is on same root as b
               assert(parentsBefore.content.subsetOf(parentsAfter.content))
-              // assert(parentsAfter.head.addr == )
+              parentChainSublistImpliesFind(a1, a2, b)
               assert(newUF.find(b) == a2)
+            else setMaintainsFind(a1, newUF.nodeAt(a1), b)
           else if n1.rank > n2.rank then
-            // OurListSpecs.mapAtIndex(newUF.heap, a2, _.parent == a1)
-            // OurListSpecs.mapAtIndex(newUF.heap, a1, _.rank == n1.rank)
             assert(newRoot == a1)
-            assert(newUF.heap.contains(uf.nodeAt(b)))
+            // assert(newUF.heap.contains(uf.nodeAt(b)))
             // updatedListPreservesFind(a1, newUF.nodeAt(a1), b)
-            assert(newUF.find(b) == a1)
+            if uf.find(b) == a2 then
+              // TODO: set is on same root as b
+              assert(newUF.find(b) == a1)
+              assert(parentsBefore.content.subsetOf(parentsAfter.content))
+              parentChainSublistImpliesFind(a1, a2, b)
+            else setMaintainsFind(a2, newUF.nodeAt(a2), b)
           else
-            // OurListSpecs.mapAtIndex(newUF.heap, a2, _.parent == a1)
-            // OurListSpecs.mapAtIndex(newUF.heap, a1, _.rank == n1.rank + 1)
             assert(newRoot == a1)
-            assert(newUF.heap.contains(uf.nodeAt(b)))
+            // assert(newUF.heap.contains(uf.nodeAt(b)))
             // updatedListPreservesFind(a1, newUF.nodeAt(a1), b)
+            // TODO: rank increased
+            setTwoFind(
+              a1,
+              newUF.nodeAt(a1).asInstanceOf[Root[T]],
+              a2,
+              newUF.nodeAt(a2).asInstanceOf[Child[T]],
+              b
+            )
             assert(newUF.find(b) == a1)
       }
 

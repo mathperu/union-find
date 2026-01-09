@@ -87,7 +87,7 @@ object UnionFindList {
         case Root(addr, value, rank)           => addr
       }
 
-    private def set(addr: BigInt, n: Node[T]): UF[T] = {
+    def set(addr: BigInt, n: Node[T]): UF[T] = {
       require(isValidAddr(addr))
       require(isValidAddr(n.addr))
       require(n.addr == addr)
@@ -351,7 +351,7 @@ object UnionFindList {
         }
     }
 
-    private def setTwo(
+    def setTwo(
         ar: BigInt,
         r: Root[T],
         ac: BigInt,

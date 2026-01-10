@@ -114,6 +114,7 @@ object UnionFindList {
     require(heap.forall(parentFuncOnHeap))
 
     // Invariant II: address matches position in heap
+    // Implied by Invariant III
     val addrFuncOnHeap = addrFunc(heap)
     require(heap.forall(addrFuncOnHeap))
 
@@ -122,10 +123,9 @@ object UnionFindList {
 
     // Invariant IV: rank of a node is less than or equal to its parent's rank
     val rankFuncOnHeap = rankFunc(heap)
-    val rankInv = heap.forall(rankFuncOnHeap)
     require(heap.forall(rankFuncOnHeap))
 
-    // Invariant VI
+    // Invariant V: rank of a node is less than or equal to the number of Child nodes
     val boundedRankFuncOnHeap = boundedRankFunc(heap)
     require(heap.forall(boundedRankFuncOnHeap))
 
@@ -175,7 +175,7 @@ object UnionFindList {
       rankInvUpdate(heap, addr, n)
       assert(newHeap.forall(rankFunc(newHeap)))
 
-      // Invariant VI
+      // Invariant V
       boundedRankUpdate(heap, addr, n)
 
       // Invariant II
@@ -253,7 +253,7 @@ object UnionFindList {
       }
       rankInvAppend(heap, newNode)
 
-      // Invariant VI
+      // Invariant V: rank of a node is less than or equal to the number of Child nodes
       assert(boundedRankFunc(newHeap)(newNode))
       boundedRankAppend(heap, newNode)
 
@@ -280,18 +280,17 @@ object UnionFindList {
       // preconds for nodeAt(addr).rank enable proof for non-negative measure
       def findInner(addr: BigInt): BigInt = {
         require(isValidAddr(addr))
-        val f = nodeAt(addr)
-        require(f.rank >= 0)
-        require(f.rank <= heap.size)
-        decreases(heap.size - f.rank)
+        val n = nodeAt(addr)
+        require(n.rank >= 0)
+        require(n.rank <= heap.size)
+        decreases(heap.size - n.rank)
 
         nodeAt(addr) match {
           case Child(addr, value, dist, parentAddr) => {
-            ListSpecs.forallContained(heap, parentFuncOnHeap, f)
+            ListSpecs.forallContained(heap, parentFuncOnHeap, n)
             val parent = nodeAt(parentAddr)
-            check(rankInv)
 
-            ListSpecs.forallContained(heap, rankFuncOnHeap, f)
+            ListSpecs.forallContained(heap, rankFuncOnHeap, n)
 
             instantiateRank(parent)
             check(parent.rank >= 0)
@@ -316,11 +315,11 @@ object UnionFindList {
         nodeAtIsRoot(y) && isValidAddr(y) && nodeAt(addr).rank <= nodeAt(y).rank
       )
 
-      // Invoke invariants on Node[T]
-      val f = nodeAt(addr)
-      (f.rank >= 0) because { instantiateRank(f); trivial }
-      ListSpecs.forallContained(heap, boundedRankFuncOnHeap, f)
-      MoreListSpecs.weakenBoundOnListSize(heap, e => !isRoot(e), f.rank)
+      // Invoke invariants on Node[T] to satisfy preconditions of findInner
+      val n = nodeAt(addr)
+      (n.rank >= 0) because { instantiateRank(n); trivial }
+      ListSpecs.forallContained(heap, boundedRankFuncOnHeap, n)
+      MoreListSpecs.weakenBoundOnListSize(heap, e => !isRoot(e), n.rank)
       findInner(addr)
     }.ensuring(y =>
       nodeAtIsRoot(y) && isValidAddr(y) && nodeAt(addr).rank <= nodeAt(y).rank
@@ -416,14 +415,14 @@ object UnionFindList {
 
       // for invariant VI
       require(r.rank == heap(ar).rank + 1)
-      require(isRoot(heap(ar))) // !isRoot(r) || isRoot(heap(ar))
+      require(isRoot(heap(ar)))
       require(boundedRankFuncOnHeap(c))
       require(isRoot(heap(ac)))
 
       // Add r first and check invariants I to IV
-
       val newHeapRootFirstTemp = heap.updated(ar, r)
       val newHeapRootFirst = newHeapRootFirstTemp.updated(ac, c)
+
       // Invariant III
       MoreListSpecs.mapAtIndex(heap, ar, _.addr)
       MoreListSpecs.rangeAtIndexPlusStartIsIndexPlusStart(0, heap.size, ar)
@@ -435,13 +434,16 @@ object UnionFindList {
         ac
       )
       MoreListSpecs.mapUpdate(newHeapRootFirstTemp, ac, c, _.addr)
+
       // Invariant II
       rangeInvImpliesAddrInv(newHeapRootFirstTemp)
       rangeInvImpliesAddrInv(newHeapRootFirst)
+
       // Invariant I
       parentInvUpdate(heap, ar, r)
       parentInvUpdate(newHeapRootFirstTemp, ac, c)
-      // Invariant IV
+
+      // Invariant V
       MoreListSpecs.predicateIsPreservedOnNonUpdatedElements(
         heap,
         ar,
@@ -459,11 +461,11 @@ object UnionFindList {
       rankInvUpdate(heap, ar, r)
       rankInvUpdate(newHeapRootFirstTemp, ac, c)
 
-      // Add c first and check invariant VI
-
+      // Add c first and check invariant V
       val newHeapChildFirstTemp = heap.updated(ac, c)
       val newHeapChildFirst = newHeapRootFirstTemp.updated(ar, r)
-      // Invariant VI
+
+      // Invariant V
       MoreListSpecs.predicateIsPreservedOnNonUpdatedElements(
         heap,
         ac,

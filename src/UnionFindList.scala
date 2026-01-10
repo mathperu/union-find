@@ -152,10 +152,10 @@ object UnionFindList {
       require(parentFuncOnHeap(n))
       // for invariant IV
       require(rankFuncOnHeap(n))
-      require(isRoot(heap(addr)))
-      require(heap(addr).rank <= n.rank)
-      require(isRoot(n) || heap(addr).rank == n.rank)
-      // for invariant VI
+      require(isRoot(heap(addr)) ==> (heap(addr).rank <= n.rank))
+      require(isRoot(heap(addr)) ==> (isRoot(n) || heap(addr).rank == n.rank))
+      require(!isRoot(heap(addr)) ==> (!isRoot(n) && heap(addr).rank == n.rank))
+      // for invariant V
       require(boundedRankFuncOnHeap(n))
       require(!isRoot(n) || isRoot(heap(addr)))
 
